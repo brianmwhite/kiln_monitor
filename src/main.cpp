@@ -4,6 +4,7 @@
 #include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
 #include <Adafruit_MAX31856.h>
+#include "KilnUtilities.h"
 
 #ifdef KILN_BLYNK_AUTH
   char auth[] = KILN_BLYNK_AUTH;
@@ -16,16 +17,13 @@
 #ifdef KILN_WIFI_PWD
   char pass[] = KILN_WIFI_PWD;
 #endif
+KilnUtilities kiln;
 
 BlynkTimer timer;
 Adafruit_MAX31856 maxthermo = Adafruit_MAX31856(12, 13, 14, 15);
 
 bool notifiedMaxTemp = false;
 float maxTempForNotify = 80.0;
-
-float ConvertCelsiusToFahrenheit(float temperatureInCelsius) {
-  return (temperatureInCelsius * 9.0 / 5.0) + 32.0;
-}
 
 bool HasFault(uint8_t fault)
 {
@@ -51,10 +49,10 @@ void TemperatureTimeProcess()
 { 
   if (!HasFault(maxthermo.readFault())) {
     float kilnTempInCelsius = maxthermo.readThermocoupleTemperature();
-    float kilnTempInFahrenheit = ConvertCelsiusToFahrenheit(kilnTempInCelsius);
+    float kilnTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(kilnTempInCelsius);
 
     float boardTempInCelsius = maxthermo.readCJTemperature();
-    float boardTempInFahrenheit = ConvertCelsiusToFahrenheit(boardTempInCelsius);
+    float boardTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(boardTempInCelsius);
 
     Serial.println(kilnTempInFahrenheit);
     Blynk.virtualWrite(V5, kilnTempInFahrenheit);

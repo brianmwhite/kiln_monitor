@@ -8,8 +8,11 @@ class KilnUtilities {
 
     public:
         KilnUtilities() {}
-        string LookupConeValue(float tempInF);
         float ConvertCelsiusToFahrenheit(float temperatureInCelsius);
-    };
+        float ConvertFahrenheitToCelsius(float temperatureInFahrenheit);
+        string LookUpConeValueFromFahrenheit(float tempInF);
+        float LookUpTemperatureValueFromCone(string cone);
+
+};
 
 #endif

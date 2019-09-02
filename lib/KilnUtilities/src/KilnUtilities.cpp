@@ -2,11 +2,18 @@
 #include <string>
 using namespace std;
 
-float KilnUtilities::ConvertCelsiusToFahrenheit(float temperatureInCelsius) {
+float KilnUtilities::ConvertCelsiusToFahrenheit(float temperatureInCelsius)
+{
   return (temperatureInCelsius * 9.0 / 5.0) + 32.0;
 }
 
-string KilnUtilities::LookupConeValue(float tempInF) {
+float KilnUtilities::ConvertFahrenheitToCelsius(float temperatureInFahrenheit)
+{
+  return (temperatureInFahrenheit - 32.0) * 5.0 / 9.0;
+}
+
+string KilnUtilities::LookUpConeValueFromFahrenheit(float tempInF) 
+{
   string cone = "";
   if (tempInF >= 2345) {cone = "10";}
   else if (tempInF >= 2300) {cone = "9";}
@@ -40,6 +47,42 @@ string KilnUtilities::LookupConeValue(float tempInF) {
   else if (tempInF >= 1159) {cone = "020";}
   else if (tempInF >= 1112) {cone = "021";}
   else if (tempInF >= 1087) {cone = "022";}
-  else cone = "";
   return cone;
+}
+
+float KilnUtilities::LookUpTemperatureValueFromCone(string cone) {
+  float tempInF = 0.0;
+  if (cone == "10") {tempInF=2345;}
+  else if (cone == "9") {tempInF=2300;}
+  else if (cone == "8") {tempInF=2273;}
+  else if (cone == "7") {tempInF=2262;}
+  else if (cone == "6") {tempInF=2232;}
+  else if (cone == "5") {tempInF=2167;}
+  else if (cone == "4") {tempInF=2142;}
+  else if (cone == "3") {tempInF=2106;}
+  else if (cone == "2") {tempInF=2088;}
+  else if (cone == "1") {tempInF=2079;}
+  else if (cone == "01") {tempInF=2046;}
+  else if (cone == "02") {tempInF=2016;}
+  else if (cone == "03") {tempInF=1987;}
+  else if (cone == "04") {tempInF=1945;}
+  else if (cone == "05") {tempInF=1888;}
+  else if (cone == "06") {tempInF=1828;}
+  else if (cone == "07") {tempInF=1789;}
+  else if (cone == "08") {tempInF=1728;}
+  else if (cone == "09") {tempInF=1688;}
+  else if (cone == "010") {tempInF=1657;}
+  else if (cone == "011") {tempInF=1607;}
+  else if (cone == "012") {tempInF=1582;}
+  else if (cone == "013") {tempInF=1539;}
+  else if (cone == "014") {tempInF=1485;}
+  else if (cone == "015") {tempInF=1456;}
+  else if (cone == "016") {tempInF=1422;}
+  else if (cone == "017") {tempInF=1360;}
+  else if (cone == "018") {tempInF=1252;}
+  else if (cone == "019") {tempInF=1252;}
+  else if (cone == "020") {tempInF=1159;}
+  else if (cone == "021") {tempInF=1112;}
+  else if (cone == "022") {tempInF=1087;}
+  return tempInF;
 }

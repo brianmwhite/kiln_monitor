@@ -23,7 +23,8 @@ BlynkTimer timer;
 Adafruit_MAX31856 maxthermo = Adafruit_MAX31856(12, 13, 14, 15);
 
 bool notifiedMaxTemp = false;
-float maxTempForNotify = 80.0;
+float maxTempForNotify = kiln.LookUpTemperatureValueFromCone("6");
+float coolDownTemperature = 90.0;
 
 bool HasFault(uint8_t fault)
 {

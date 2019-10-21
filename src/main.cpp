@@ -5,6 +5,7 @@
 #include <BlynkSimpleEsp8266.h>
 #include <Adafruit_MAX31856.h>
 #include "KilnUtilities.h"
+#include "LEDContainer.h"
 
 //pin definition
 #define PIN_THERMOCOUPLE_LED_STATUS 4
@@ -17,52 +18,10 @@
 #define spi_miso 14
 #define spi_clk 15
 
-class LED_Container
-{
-public:
-  int PIN;
-  int LED_STATE = LOW;
-  int READY_STATE = false;
-  int BLINK_DELAY_MILLISECONDS = 1000;
-  int NEXT_TIME_TO_BLINK = 0;
-
-  void init(int pin)
-  {
-    PIN = pin;
-    pinMode(PIN, OUTPUT);
-    digitalWrite(PIN, LOW);
-  }
-
-  void updateLED()
-  {
-    if (READY_STATE)
-    {
-      digitalWrite(PIN, HIGH);
-    }
-    else
-    {
-      int TIME_NOW = millis();
-      if (TIME_NOW >= NEXT_TIME_TO_BLINK)
-      {
-        if (LED_STATE == HIGH)
-        {
-          LED_STATE = LOW;
-        }
-        else
-        {
-          LED_STATE = HIGH;
-        }
-        digitalWrite(PIN, LED_STATE);
-        NEXT_TIME_TO_BLINK = TIME_NOW + BLINK_DELAY_MILLISECONDS;
-      }
-    }
-  }
-};
-
-LED_Container LED_Thermocouple_Status;
-LED_Container LED_Wifi_Status;
-LED_Container LED_Power_Status;
-LED_Container LED_BLYNK_Status;
+LEDContainer LED_Thermocouple_Status;
+LEDContainer LED_Wifi_Status;
+LEDContainer LED_Power_Status;
+LEDContainer LED_BLYNK_Status;
 
 #ifdef KILN_BLYNK_AUTH
   char auth[] = KILN_BLYNK_AUTH;

@@ -83,7 +83,7 @@ void TemperatureTimeProcess()
     Blynk.virtualWrite(V5, kilnTempInFahrenheit);
     Blynk.virtualWrite(V6, boardTempInFahrenheit);
 
-    if (kilnTempInFahrenheit >= temperatureForCoolDownNotification + LowTemperatureThreshold && !hasLowTemperatureNotificationBeenUnlocked) {
+    if (kilnTempInFahrenheit > temperatureForCoolDownNotification + LowTemperatureThreshold && !hasLowTemperatureNotificationBeenUnlocked) {
       hasLowTemperatureNotificationBeenUnlocked = true;
     }
 

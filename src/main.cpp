@@ -7,10 +7,10 @@
 #include "KilnUtilities.h"
 
 //pin definition
-#define LED_WIFI 2
-#define LED_BLYNK 16
-#define LED_POWER 5
-// #define LED_THERMO 4
+#define PIN_THERMOCOUPLE_LED_STATUS 4
+#define PIN_WIFI_LED_STATUS 2
+#define PIN_LED_BLYNK_STATUS 16
+#define PIN_LED_POWER_STATUS 5
 
 #define spi_cs 12
 #define spi_mosi 13
@@ -59,7 +59,10 @@ public:
   }
 };
 
-LED_Container LED_Thermocouple;
+LED_Container LED_Thermocouple_Status;
+LED_Container LED_Wifi_Status;
+LED_Container LED_Power_Status;
+LED_Container LED_BLYNK_Status;
 
 #ifdef KILN_BLYNK_AUTH
   char auth[] = KILN_BLYNK_AUTH;
@@ -72,6 +75,7 @@ LED_Container LED_Thermocouple;
 #ifdef KILN_WIFI_PWD
   char pass[] = KILN_WIFI_PWD;
 #endif
+
 KilnUtilities kiln;
 
 BlynkTimer timer;
@@ -84,7 +88,7 @@ float coolDownTemperature = 90.0;
 bool HasFault(uint8_t fault)
 {
     if (fault) {
-      LED_Thermocouple.READY_STATE = false;
+      LED_Thermocouple_Status.READY_STATE = false;
 
       if (fault & MAX31856_FAULT_CJRANGE) Serial.println("Cold Junction Range Fault");
       if (fault & MAX31856_FAULT_TCRANGE) Serial.println("Thermocouple Range Fault");
@@ -99,13 +103,12 @@ bool HasFault(uint8_t fault)
     else {
       return false;
     }
-    
 }
 
 void TemperatureTimeProcess() 
 { 
   if (!HasFault(maxthermo.readFault())) {
-    LED_Thermocouple.READY_STATE = true;
+    LED_Thermocouple_Status.READY_STATE = true;
 
     float kilnTempInCelsius = maxthermo.readThermocoupleTemperature();
     float kilnTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(kilnTempInCelsius);
@@ -125,34 +128,17 @@ void TemperatureTimeProcess()
   }
 }
 
-void toggleLED(LED_Container ledToToggle)
-{
-  if (ledToToggle.LED_STATE == HIGH) 
-  {
-    ledToToggle.LED_STATE = LOW;
-  }
-  else {
-    ledToToggle.LED_STATE = HIGH;
-  }
-  digitalWrite(ledToToggle.PIN, ledToToggle.LED_STATE);
-}
-
 void setup() {
   Serial.begin(115200);
 
-  LED_Thermocouple.init(4);
-
-  pinMode(LED_POWER, OUTPUT);
-  pinMode(LED_WIFI, OUTPUT);
-  pinMode(LED_BLYNK, OUTPUT);
-
-  digitalWrite(LED_POWER, LOW);
-  digitalWrite(LED_WIFI, LOW);
-  digitalWrite(LED_BLYNK, LOW);
+  LED_Thermocouple_Status.init(PIN_THERMOCOUPLE_LED_STATUS);
+  LED_Wifi_Status.init(PIN_WIFI_LED_STATUS);
+  LED_Power_Status.init(PIN_LED_POWER_STATUS);
+  LED_BLYNK_Status.init(PIN_LED_BLYNK_STATUS);
 
   Blynk.begin(auth, ssid, pass);
-  digitalWrite(LED_WIFI, HIGH);
-
+  LED_Wifi_Status.READY_STATE = true;
+  
   timer.setInterval(1000L, TemperatureTimeProcess);
   
   maxthermo.begin();
@@ -160,10 +146,15 @@ void setup() {
 }
 
 void loop() {
-  Blynk.run();
-  timer.run();
-  LED_Thermocouple.updateLED();
-  digitalWrite(LED_BLYNK, Blynk.connected());
-  digitalWrite(LED_POWER, HIGH);
+  LED_Power_Status.READY_STATE = true;
 
+  Blynk.run();
+  LED_BLYNK_Status.READY_STATE = Blynk.connected();
+ 
+  timer.run();
+  
+  LED_Power_Status.updateLED();
+  LED_Thermocouple_Status.updateLED();
+  LED_Wifi_Status.updateLED();
+  LED_BLYNK_Status.updateLED();
 }

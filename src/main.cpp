@@ -7,21 +7,21 @@
 #include "KilnUtilities.h"
 #include "LEDContainer.h"
 
-//pin definition
+//pin definitions
 #define PIN_THERMOCOUPLE_LED_STATUS 4
 #define PIN_WIFI_LED_STATUS 2
 #define PIN_LED_BLYNK_STATUS 16
 #define PIN_LED_POWER_STATUS 5
 
+//thermocouple pins
 #define spi_cs 12
 #define spi_mosi 13
 #define spi_miso 14
 #define spi_clk 15
 
-LEDContainer LED_Thermocouple_Status;
-LEDContainer LED_Wifi_Status;
-LEDContainer LED_Power_Status;
-LEDContainer LED_BLYNK_Status;
+KilnUtilities kiln;
+float temperatureForTargetTemperatureNotification = kiln.LookUpTemperatureValueFromCone("6");
+float temperatureForCoolDownNotification = 90.0;
 
 #ifdef KILN_BLYNK_AUTH
   char auth[] = KILN_BLYNK_AUTH;
@@ -35,19 +35,23 @@ LEDContainer LED_BLYNK_Status;
   char pass[] = KILN_WIFI_PWD;
 #endif
 
-KilnUtilities kiln;
+LEDContainer LED_Thermocouple_Status;
+LEDContainer LED_Wifi_Status;
+LEDContainer LED_Power_Status;
+LEDContainer LED_BLYNK_Status;
 
 BlynkTimer timer;
 Adafruit_MAX31856 maxthermo = Adafruit_MAX31856(spi_cs, spi_mosi, spi_miso, spi_clk);
 
-bool notifiedMaxTemp = false;
-float maxTempForNotify = kiln.LookUpTemperatureValueFromCone("6");
-float coolDownTemperature = 90.0;
+bool hasNotifiedForTargetHighTemperature = false;
+bool hasNotifiedForTargetLowTemperature = false;
+bool hasLowTemperatureNotificationBeenUnlocked = false;
+int LowTemperatureThreshold = 10;
 
 bool HasFault(uint8_t fault)
 {
     if (fault) {
-      LED_Thermocouple_Status.READY_STATE = false;
+      LED_Thermocouple_Status.setStatus(false);
 
       if (fault & MAX31856_FAULT_CJRANGE) Serial.println("Cold Junction Range Fault");
       if (fault & MAX31856_FAULT_TCRANGE) Serial.println("Thermocouple Range Fault");
@@ -67,7 +71,7 @@ bool HasFault(uint8_t fault)
 void TemperatureTimeProcess() 
 { 
   if (!HasFault(maxthermo.readFault())) {
-    LED_Thermocouple_Status.READY_STATE = true;
+    LED_Thermocouple_Status.setStatus(true);
 
     float kilnTempInCelsius = maxthermo.readThermocoupleTemperature();
     float kilnTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(kilnTempInCelsius);
@@ -79,10 +83,19 @@ void TemperatureTimeProcess()
     Blynk.virtualWrite(V5, kilnTempInFahrenheit);
     Blynk.virtualWrite(V6, boardTempInFahrenheit);
 
-    if (kilnTempInFahrenheit >= maxTempForNotify && !notifiedMaxTemp)
+    if (kilnTempInFahrenheit >= temperatureForCoolDownNotification + LowTemperatureThreshold && !hasLowTemperatureNotificationBeenUnlocked) {
+      hasLowTemperatureNotificationBeenUnlocked = true;
+    }
+
+    if (kilnTempInFahrenheit <= temperatureForCoolDownNotification && !hasNotifiedForTargetLowTemperature && hasLowTemperatureNotificationBeenUnlocked) {
+      Blynk.notify("Kiln has cooled down.");
+      hasNotifiedForTargetLowTemperature = true;
+    }
+
+    if (kilnTempInFahrenheit >= temperatureForTargetTemperatureNotification && !hasNotifiedForTargetHighTemperature)
     {
-      Blynk.notify("Max Temp Target Reached");
-      notifiedMaxTemp = true;
+      Blynk.notify("Kiln has reached target cone temperature");
+      hasNotifiedForTargetHighTemperature = true;
     }
   }
 }
@@ -95,8 +108,10 @@ void setup() {
   LED_Power_Status.init(PIN_LED_POWER_STATUS);
   LED_BLYNK_Status.init(PIN_LED_BLYNK_STATUS);
 
+  LED_Power_Status.setStatus(true);
+
   Blynk.begin(auth, ssid, pass);
-  LED_Wifi_Status.READY_STATE = true;
+  LED_Wifi_Status.setStatus(true);
   
   timer.setInterval(1000L, TemperatureTimeProcess);
   
@@ -105,10 +120,8 @@ void setup() {
 }
 
 void loop() {
-  LED_Power_Status.READY_STATE = true;
-
   Blynk.run();
-  LED_BLYNK_Status.READY_STATE = Blynk.connected();
+  LED_BLYNK_Status.setStatus(Blynk.connected());
  
   timer.run();
   

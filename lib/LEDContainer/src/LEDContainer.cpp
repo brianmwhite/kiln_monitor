@@ -11,9 +11,19 @@ LEDContainer::LEDContainer()
 
 void LEDContainer::init(int pin)
 {
+  init(pin, BLINK_DELAY_MILLISECONDS);
+}
+
+void LEDContainer::init(int pin, int delay_in_milliseconds)
+{
   PIN = pin;
   pinMode(PIN, OUTPUT);
   digitalWrite(PIN, LOW);
+  BLINK_DELAY_MILLISECONDS = delay_in_milliseconds;
+}
+
+void LEDContainer::setStatus(int status) {
+  READY_STATE = status;
 }
 
 void LEDContainer::updateLED()

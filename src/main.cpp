@@ -10,12 +10,56 @@
 #define LED_WIFI 2
 #define LED_BLYNK 16
 #define LED_POWER 5
-#define LED_THERMO 4
+// #define LED_THERMO 4
 
 #define spi_cs 12
 #define spi_mosi 13
 #define spi_miso 14
 #define spi_clk 15
+
+class LED_Container
+{
+public:
+  int PIN;
+  int LED_STATE = LOW;
+  int READY_STATE = false;
+  int BLINK_DELAY_MILLISECONDS = 1000;
+  int NEXT_TIME_TO_BLINK = 0;
+
+  void init(int pin)
+  {
+    PIN = pin;
+    pinMode(PIN, OUTPUT);
+    digitalWrite(PIN, LOW);
+  }
+
+  void updateLED()
+  {
+    if (READY_STATE)
+    {
+      digitalWrite(PIN, HIGH);
+    }
+    else
+    {
+      int TIME_NOW = millis();
+      if (TIME_NOW >= NEXT_TIME_TO_BLINK)
+      {
+        if (LED_STATE == HIGH)
+        {
+          LED_STATE = LOW;
+        }
+        else
+        {
+          LED_STATE = HIGH;
+        }
+        digitalWrite(PIN, LED_STATE);
+        NEXT_TIME_TO_BLINK = TIME_NOW + BLINK_DELAY_MILLISECONDS;
+      }
+    }
+  }
+};
+
+LED_Container LED_Thermocouple;
 
 #ifdef KILN_BLYNK_AUTH
   char auth[] = KILN_BLYNK_AUTH;
@@ -40,13 +84,7 @@ float coolDownTemperature = 90.0;
 bool HasFault(uint8_t fault)
 {
     if (fault) {
-
-      for (int i = 0; i < 10; i++) {
-        digitalWrite(LED_THERMO, HIGH);
-        delay(100);
-        digitalWrite(LED_THERMO, LOW);
-        delay(100);
-      }
+      LED_Thermocouple.READY_STATE = false;
 
       if (fault & MAX31856_FAULT_CJRANGE) Serial.println("Cold Junction Range Fault");
       if (fault & MAX31856_FAULT_TCRANGE) Serial.println("Thermocouple Range Fault");
@@ -67,7 +105,7 @@ bool HasFault(uint8_t fault)
 void TemperatureTimeProcess() 
 { 
   if (!HasFault(maxthermo.readFault())) {
-    digitalWrite(LED_THERMO, HIGH);
+    LED_Thermocouple.READY_STATE = true;
 
     float kilnTempInCelsius = maxthermo.readThermocoupleTemperature();
     float kilnTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(kilnTempInCelsius);
@@ -87,26 +125,30 @@ void TemperatureTimeProcess()
   }
 }
 
+void toggleLED(LED_Container ledToToggle)
+{
+  if (ledToToggle.LED_STATE == HIGH) 
+  {
+    ledToToggle.LED_STATE = LOW;
+  }
+  else {
+    ledToToggle.LED_STATE = HIGH;
+  }
+  digitalWrite(ledToToggle.PIN, ledToToggle.LED_STATE);
+}
+
 void setup() {
   Serial.begin(115200);
+
+  LED_Thermocouple.init(4);
 
   pinMode(LED_POWER, OUTPUT);
   pinMode(LED_WIFI, OUTPUT);
   pinMode(LED_BLYNK, OUTPUT);
-  pinMode(LED_THERMO, OUTPUT);
 
   digitalWrite(LED_POWER, LOW);
   digitalWrite(LED_WIFI, LOW);
   digitalWrite(LED_BLYNK, LOW);
-  digitalWrite(LED_THERMO, LOW);
-
-
-  for (int i = 0; i < 10; i++) {
-    digitalWrite(LED_POWER, HIGH);
-    delay(100);
-    digitalWrite(LED_POWER, LOW);
-    delay(100);
-  }
 
   Blynk.begin(auth, ssid, pass);
   digitalWrite(LED_WIFI, HIGH);
@@ -120,6 +162,8 @@ void setup() {
 void loop() {
   Blynk.run();
   timer.run();
+  LED_Thermocouple.updateLED();
   digitalWrite(LED_BLYNK, Blynk.connected());
   digitalWrite(LED_POWER, HIGH);
+
 }

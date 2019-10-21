@@ -23,6 +23,9 @@ KilnUtilities kiln;
 float temperatureForTargetTemperatureNotification = kiln.LookUpTemperatureValueFromCone("6");
 float temperatureForCoolDownNotification = 90.0;
 
+long TIME_BETWEEN_TEMPERATURE_READING = 1000L;
+int SERIAL_BAUD_RATE = 115200;
+
 #ifdef KILN_BLYNK_AUTH
   char auth[] = KILN_BLYNK_AUTH;
 #endif
@@ -101,7 +104,7 @@ void TemperatureTimeProcess()
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(SERIAL_BAUD_RATE);
 
   LED_Thermocouple_Status.init(PIN_THERMOCOUPLE_LED_STATUS);
   LED_Wifi_Status.init(PIN_WIFI_LED_STATUS);
@@ -113,7 +116,7 @@ void setup() {
   Blynk.begin(auth, ssid, pass);
   LED_Wifi_Status.setStatus(true);
   
-  timer.setInterval(1000L, TemperatureTimeProcess);
+  timer.setInterval(TIME_BETWEEN_TEMPERATURE_READING, TemperatureTimeProcess);
   
   maxthermo.begin();
   maxthermo.setThermocoupleType(MAX31856_TCTYPE_K);

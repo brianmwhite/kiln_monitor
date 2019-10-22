@@ -58,7 +58,8 @@ bool hasNotifiedForTargetTooHighTemperature = false;
 bool HasFault(uint8_t fault)
 {
     if (fault) {
-      LED_Thermocouple_Status.setReadyState(false);
+      // LED_Thermocouple_Status.setReadyState(false);
+      Serial.println("Thermocouple Fault Detected");
 
       if (fault & MAX31856_FAULT_CJRANGE) Serial.println("Cold Junction Range Fault");
       if (fault & MAX31856_FAULT_TCRANGE) Serial.println("Thermocouple Range Fault");
@@ -80,31 +81,35 @@ void SendNotifications(float kilnTemperature)
   if (kilnTemperature > temperatureForCoolDownNotification + LowTemperatureThreshold && !hasLowTemperatureNotificationBeenUnlocked)
   {
     hasLowTemperatureNotificationBeenUnlocked = true;
+    Serial.println("DEBUG: Low Temperature Threshold Unlocked");
   }
 
   if (kilnTemperature <= temperatureForCoolDownNotification && !hasNotifiedForTargetLowTemperature && hasLowTemperatureNotificationBeenUnlocked)
   {
     Blynk.notify("Kiln has cooled down.");
     hasNotifiedForTargetLowTemperature = true;
+    Serial.println("DEBUG: Notification Sent for Kiln Cooled Down");
   }
 
   if (kilnTemperature >= temperatureForTargetTemperatureNotification && !hasNotifiedForTargetHighTemperature)
   {
     Blynk.notify("Kiln has reached target cone temperature");
     hasNotifiedForTargetHighTemperature = true;
+    Serial.println("DEBUG: Notification Sent for Target Cone Temperature Reached");
   }
 
   if (kilnTemperature >= temperatureForTooHotTargetTemperatureNotification && !hasNotifiedForTargetTooHighTemperature)
   {
     Blynk.notify("Warning: Kiln has exceeded target cone temperature.");
     hasNotifiedForTargetTooHighTemperature = true;
+    Serial.println("DEBUG: Notification Sent for exceeding target cone temperature");
   }
 }
 
 void TemperatureTimeProcess() 
 { 
   if (!HasFault(maxthermo.readFault())) {
-    LED_Thermocouple_Status.setReadyState(true);
+    // LED_Thermocouple_Status.setReadyState(true);
 
     float kilnTempInCelsius = maxthermo.readThermocoupleTemperature();
     float kilnTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(kilnTempInCelsius);
@@ -112,7 +117,7 @@ void TemperatureTimeProcess()
     float boardTempInCelsius = maxthermo.readCJTemperature();
     float boardTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(boardTempInCelsius);
 
-    Serial.println(kilnTempInFahrenheit);
+    Serial.println(String("DEBUG: ") + kilnTempInFahrenheit);
     Blynk.virtualWrite(V5, kilnTempInFahrenheit);
     Blynk.virtualWrite(V6, boardTempInFahrenheit);
 
@@ -120,20 +125,42 @@ void TemperatureTimeProcess()
   }
 }
 
+void WifiManagerPortalDisplayed(WiFiManager *myWiFiManager) {
+  Serial.println("Wifi Portal Displayed");
+}
+
+void WifiManagerWifiConnected() {
+  Serial.println("DEBUG: Wifi Connected");
+  // LED_Wifi_Status.setReadyState(true);
+}
+
 void setup() {
   Serial.begin(SERIAL_BAUD_RATE);
+  delay(5000);
 
-  LED_Thermocouple_Status.init(PIN_THERMOCOUPLE_LED_STATUS);
+  // LED_Thermocouple_Status.init(PIN_THERMOCOUPLE_LED_STATUS);
   LED_Wifi_Status.init(PIN_WIFI_LED_STATUS);
-  LED_Power_Status.init(PIN_LED_POWER_STATUS);
-  LED_BLYNK_Status.init(PIN_LED_BLYNK_STATUS);
+  // LED_Power_Status.init(PIN_LED_POWER_STATUS);
+  // LED_BLYNK_Status.init(PIN_LED_BLYNK_STATUS);
 
-  LED_Power_Status.setReadyState(true);
+  // delay(5000);
+
+  // LED_Power_Status.setReadyState(true);
 
   WiFiManager wifiManager;
+  wifiManager.setAPCallback(WifiManagerPortalDisplayed);
+  wifiManager.setSaveConfigCallback(WifiManagerWifiConnected);
+
   //TODO: maybe create a random suffix using https://github.com/marvinroger/ESP8266TrueRandom
-  wifiManager.autoConnect("KilnMonitor_4da994b3");
-  LED_Wifi_Status.setReadyState(true);
+  bool wifiManagerSuccess = wifiManager.autoConnect("KilnMonitor_4da994b3");
+  if (wifiManagerSuccess)
+  {
+    Serial.println("WifiManager reports true");
+  }
+  else
+  {
+    Serial.println("WifiManager reports false");
+  }
 
   Blynk.config(BLYNK_AUTH_TOKEN);
   
@@ -147,10 +174,12 @@ void loop() {
   Blynk.run();
   timer.run();
   
-  LED_Power_Status.updateLED();
-  LED_Thermocouple_Status.updateLED();
-  LED_Wifi_Status.updateLED();
+  // LED_Power_Status.updateLED();
+  // LED_Thermocouple_Status.updateLED();
+  // LED_Wifi_Status.updateLED();
   
-  LED_BLYNK_Status.setReadyState(Blynk.connected());
-  LED_BLYNK_Status.updateLED();
+  int blynkStatus = Blynk.connected();
+  // LED_BLYNK_Status.setReadyState(blynkStatus);
+
+  // LED_BLYNK_Status.updateLED();
 }

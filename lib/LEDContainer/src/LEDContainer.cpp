@@ -5,7 +5,7 @@ LEDContainer::LEDContainer()
 {
   LED_STATE = LOW;
   READY_STATE = false;
-  BLINK_DELAY_MILLISECONDS = 1000;
+  BLINK_DELAY_MILLISECONDS = 250;
   NEXT_TIME_TO_BLINK = 0;
 }
 
@@ -20,6 +20,7 @@ void LEDContainer::init(int pin, int delay_in_milliseconds)
   pinMode(PIN, OUTPUT);
   digitalWrite(PIN, LOW);
   BLINK_DELAY_MILLISECONDS = delay_in_milliseconds;
+  updateLED();
 }
 
 void LEDContainer::setStatus(int status) {

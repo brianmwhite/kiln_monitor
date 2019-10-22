@@ -23,7 +23,7 @@ KilnUtilities kiln;
 float temperatureForTargetTemperatureNotification = kiln.LookUpTemperatureValueFromCone("6");
 float temperatureForCoolDownNotification = 90.0;
 
-long TIME_BETWEEN_TEMPERATURE_READING = 1000L;
+long TIME_BETWEEN_TEMPERATURE_READING = 30000L;
 int SERIAL_BAUD_RATE = 115200;
 
 #ifdef KILN_BLYNK_AUTH
@@ -126,10 +126,10 @@ void loop() {
   Blynk.run();
   LED_BLYNK_Status.setStatus(Blynk.connected());
  
-  timer.run();
-  
   LED_Power_Status.updateLED();
   LED_Thermocouple_Status.updateLED();
   LED_Wifi_Status.updateLED();
   LED_BLYNK_Status.updateLED();
+
+  timer.run();
 }

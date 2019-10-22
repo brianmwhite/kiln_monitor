@@ -14,7 +14,7 @@ public:
     LEDContainer();
     void init(int pin);
     void init(int pin, int blink_delay_in_milliseconds);
-    void setStatus(int state);
+    void setReadyState(int state);
     void updateLED();
 };
 

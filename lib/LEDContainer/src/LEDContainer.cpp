@@ -23,7 +23,7 @@ void LEDContainer::init(int pin, int delay_in_milliseconds)
   updateLED();
 }
 
-void LEDContainer::setStatus(int status) {
+void LEDContainer::setReadyState(int status) {
   READY_STATE = status;
 }
 

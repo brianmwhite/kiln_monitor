@@ -58,7 +58,7 @@ bool hasNotifiedForTargetTooHighTemperature = false;
 bool HasFault(uint8_t fault)
 {
     if (fault) {
-      LED_Thermocouple_Status.setStatus(false);
+      LED_Thermocouple_Status.setReadyState(false);
 
       if (fault & MAX31856_FAULT_CJRANGE) Serial.println("Cold Junction Range Fault");
       if (fault & MAX31856_FAULT_TCRANGE) Serial.println("Thermocouple Range Fault");
@@ -73,25 +73,6 @@ bool HasFault(uint8_t fault)
     else {
       return false;
     }
-}
-
-void TemperatureTimeProcess() 
-{ 
-  if (!HasFault(maxthermo.readFault())) {
-    LED_Thermocouple_Status.setStatus(true);
-
-    float kilnTempInCelsius = maxthermo.readThermocoupleTemperature();
-    float kilnTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(kilnTempInCelsius);
-
-    float boardTempInCelsius = maxthermo.readCJTemperature();
-    float boardTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(boardTempInCelsius);
-
-    Serial.println(kilnTempInFahrenheit);
-    Blynk.virtualWrite(V5, kilnTempInFahrenheit);
-    Blynk.virtualWrite(V6, boardTempInFahrenheit);
-
-    SendNotifications(kilnTempInFahrenheit);
-  }
 }
 
 void SendNotifications(float kilnTemperature)
@@ -120,6 +101,25 @@ void SendNotifications(float kilnTemperature)
   }
 }
 
+void TemperatureTimeProcess() 
+{ 
+  if (!HasFault(maxthermo.readFault())) {
+    LED_Thermocouple_Status.setReadyState(true);
+
+    float kilnTempInCelsius = maxthermo.readThermocoupleTemperature();
+    float kilnTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(kilnTempInCelsius);
+
+    float boardTempInCelsius = maxthermo.readCJTemperature();
+    float boardTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(boardTempInCelsius);
+
+    Serial.println(kilnTempInFahrenheit);
+    Blynk.virtualWrite(V5, kilnTempInFahrenheit);
+    Blynk.virtualWrite(V6, boardTempInFahrenheit);
+
+    SendNotifications(kilnTempInFahrenheit);
+  }
+}
+
 void setup() {
   Serial.begin(SERIAL_BAUD_RATE);
 
@@ -128,12 +128,12 @@ void setup() {
   LED_Power_Status.init(PIN_LED_POWER_STATUS);
   LED_BLYNK_Status.init(PIN_LED_BLYNK_STATUS);
 
-  LED_Power_Status.setStatus(true);
+  LED_Power_Status.setReadyState(true);
 
   WiFiManager wifiManager;
   //TODO: maybe create a random suffix using https://github.com/marvinroger/ESP8266TrueRandom
   wifiManager.autoConnect("KilnMonitor_4da994b3");
-  LED_Wifi_Status.setStatus(true);
+  LED_Wifi_Status.setReadyState(true);
 
   Blynk.config(BLYNK_AUTH_TOKEN);
   
@@ -151,6 +151,6 @@ void loop() {
   LED_Thermocouple_Status.updateLED();
   LED_Wifi_Status.updateLED();
   
-  LED_BLYNK_Status.setStatus(Blynk.connected());
+  LED_BLYNK_Status.setReadyState(Blynk.connected());
   LED_BLYNK_Status.updateLED();
 }

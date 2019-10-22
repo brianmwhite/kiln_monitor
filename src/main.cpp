@@ -7,6 +7,11 @@
 #include "KilnUtilities.h"
 #include "LEDContainer.h"
 
+//needed for wifimanager
+#include <DNSServer.h>
+#include <ESP8266WebServer.h>
+#include <WiFiManager.h> //https://github.com/tzapu/WiFiManager
+
 //pin definitions
 #define PIN_THERMOCOUPLE_LED_STATUS 4
 #define PIN_WIFI_LED_STATUS 2
@@ -26,16 +31,11 @@ float temperatureForCoolDownNotification = 90.0;
 long TIME_BETWEEN_TEMPERATURE_READING = 10000L;
 int SERIAL_BAUD_RATE = 115200;
 
-#ifdef KILN_BLYNK_AUTH
-  char auth[] = KILN_BLYNK_AUTH;
-#endif
+//make sure to also update the build flags in platformio.ini to include something like:
+//-D EXAMPLE_ENV_VARIABLE_NAME=\"${sysenv.EXAMPLE_ENV_VARIABLE_NAME}\"
 
-#ifdef KILN_WIFI_SSID
-  char ssid[] = KILN_WIFI_SSID;
-#endif
-
-#ifdef KILN_WIFI_PWD
-  char pass[] = KILN_WIFI_PWD;
+#ifdef KILN_BLYNK_AUTH_TOKEN_ENVIRONMENT_VARIABLE
+  char BLYNK_AUTH_TOKEN[] = KILN_BLYNK_AUTH_TOKEN_ENVIRONMENT_VARIABLE;
 #endif
 
 LEDContainer LED_Thermocouple_Status;
@@ -113,8 +113,12 @@ void setup() {
 
   LED_Power_Status.setStatus(true);
 
-  Blynk.begin(auth, ssid, pass);
+  WiFiManager wifiManager;
+  //TODO: maybe create a random suffix using https://github.com/marvinroger/ESP8266TrueRandom
+  wifiManager.autoConnect("KilnMonitor_4da994b3");
   LED_Wifi_Status.setStatus(true);
+
+  Blynk.config(BLYNK_AUTH_TOKEN);
   
   timer.setInterval(TIME_BETWEEN_TEMPERATURE_READING, TemperatureTimeProcess);
   
@@ -124,12 +128,11 @@ void setup() {
 
 void loop() {
   Blynk.run();
+  timer.run();
+
   LED_BLYNK_Status.setStatus(Blynk.connected());
- 
   LED_Power_Status.updateLED();
   LED_Thermocouple_Status.updateLED();
   LED_Wifi_Status.updateLED();
   LED_BLYNK_Status.updateLED();
-
-  timer.run();
 }

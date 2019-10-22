@@ -28,6 +28,9 @@ KilnUtilities kiln;
 float temperatureForTargetTemperatureNotification = kiln.LookUpTemperatureValueFromCone("6");
 float temperatureForCoolDownNotification = 90.0;
 
+float temperatureForTooHotTargetTemperatureNotification = temperatureForTargetTemperatureNotification + 100;
+int LowTemperatureThreshold = 10;
+
 long TIME_BETWEEN_TEMPERATURE_READING = 10000L;
 int SERIAL_BAUD_RATE = 115200;
 
@@ -49,7 +52,8 @@ Adafruit_MAX31856 maxthermo = Adafruit_MAX31856(spi_cs, spi_mosi, spi_miso, spi_
 bool hasNotifiedForTargetHighTemperature = false;
 bool hasNotifiedForTargetLowTemperature = false;
 bool hasLowTemperatureNotificationBeenUnlocked = false;
-int LowTemperatureThreshold = 10;
+bool hasNotifiedForTargetTooHighTemperature = false;
+
 
 bool HasFault(uint8_t fault)
 {
@@ -86,20 +90,33 @@ void TemperatureTimeProcess()
     Blynk.virtualWrite(V5, kilnTempInFahrenheit);
     Blynk.virtualWrite(V6, boardTempInFahrenheit);
 
-    if (kilnTempInFahrenheit > temperatureForCoolDownNotification + LowTemperatureThreshold && !hasLowTemperatureNotificationBeenUnlocked) {
-      hasLowTemperatureNotificationBeenUnlocked = true;
-    }
+    SendNotifications(kilnTempInFahrenheit);
+  }
+}
 
-    if (kilnTempInFahrenheit <= temperatureForCoolDownNotification && !hasNotifiedForTargetLowTemperature && hasLowTemperatureNotificationBeenUnlocked) {
-      Blynk.notify("Kiln has cooled down.");
-      hasNotifiedForTargetLowTemperature = true;
-    }
+void SendNotifications(float kilnTemperature)
+{
+  if (kilnTemperature > temperatureForCoolDownNotification + LowTemperatureThreshold && !hasLowTemperatureNotificationBeenUnlocked)
+  {
+    hasLowTemperatureNotificationBeenUnlocked = true;
+  }
 
-    if (kilnTempInFahrenheit >= temperatureForTargetTemperatureNotification && !hasNotifiedForTargetHighTemperature)
-    {
-      Blynk.notify("Kiln has reached target cone temperature");
-      hasNotifiedForTargetHighTemperature = true;
-    }
+  if (kilnTemperature <= temperatureForCoolDownNotification && !hasNotifiedForTargetLowTemperature && hasLowTemperatureNotificationBeenUnlocked)
+  {
+    Blynk.notify("Kiln has cooled down.");
+    hasNotifiedForTargetLowTemperature = true;
+  }
+
+  if (kilnTemperature >= temperatureForTargetTemperatureNotification && !hasNotifiedForTargetHighTemperature)
+  {
+    Blynk.notify("Kiln has reached target cone temperature");
+    hasNotifiedForTargetHighTemperature = true;
+  }
+
+  if (kilnTemperature >= temperatureForTooHotTargetTemperatureNotification && !hasNotifiedForTargetTooHighTemperature)
+  {
+    Blynk.notify("Warning: Kiln has exceeded target cone temperature.");
+    hasNotifiedForTargetTooHighTemperature = true;
   }
 }
 
@@ -129,10 +146,11 @@ void setup() {
 void loop() {
   Blynk.run();
   timer.run();
-
-  LED_BLYNK_Status.setStatus(Blynk.connected());
+  
   LED_Power_Status.updateLED();
   LED_Thermocouple_Status.updateLED();
   LED_Wifi_Status.updateLED();
+  
+  LED_BLYNK_Status.setStatus(Blynk.connected());
   LED_BLYNK_Status.updateLED();
 }

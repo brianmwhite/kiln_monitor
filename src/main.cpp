@@ -23,7 +23,7 @@ KilnUtilities kiln;
 float temperatureForTargetTemperatureNotification = kiln.LookUpTemperatureValueFromCone("6");
 float temperatureForCoolDownNotification = 90.0;
 
-long TIME_BETWEEN_TEMPERATURE_READING = 30000L;
+long TIME_BETWEEN_TEMPERATURE_READING = 10000L;
 int SERIAL_BAUD_RATE = 115200;
 
 #ifdef KILN_BLYNK_AUTH

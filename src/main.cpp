@@ -38,7 +38,7 @@ int SERIAL_BAUD_RATE = 115200;
 //-D EXAMPLE_ENV_VARIABLE_NAME=\"${sysenv.EXAMPLE_ENV_VARIABLE_NAME}\"
 
 #ifdef KILN_BLYNK_AUTH_TOKEN_ENVIRONMENT_VARIABLE
-  char BLYNK_AUTH_TOKEN[] = KILN_BLYNK_AUTH_TOKEN_ENVIRONMENT_VARIABLE;
+char BLYNK_AUTH_TOKEN[] = KILN_BLYNK_AUTH_TOKEN_ENVIRONMENT_VARIABLE;
 #endif
 
 LEDContainer LED_Thermocouple_Status;
@@ -54,26 +54,35 @@ bool hasNotifiedForTargetLowTemperature = false;
 bool hasLowTemperatureNotificationBeenUnlocked = false;
 bool hasNotifiedForTargetTooHighTemperature = false;
 
-
 bool HasFault(uint8_t fault)
 {
-    if (fault) {
-      // LED_Thermocouple_Status.setReadyState(false);
-      Serial.println("Thermocouple Fault Detected");
+  if (fault)
+  {
+    LED_Thermocouple_Status.setStatus(LED_Thermocouple_Status.BLINK);
+    Serial.println("DEBUG: Thermocouple Fault Detected");
 
-      if (fault & MAX31856_FAULT_CJRANGE) Serial.println("Cold Junction Range Fault");
-      if (fault & MAX31856_FAULT_TCRANGE) Serial.println("Thermocouple Range Fault");
-      if (fault & MAX31856_FAULT_CJHIGH)  Serial.println("Cold Junction High Fault");
-      if (fault & MAX31856_FAULT_CJLOW)   Serial.println("Cold Junction Low Fault");
-      if (fault & MAX31856_FAULT_TCHIGH)  Serial.println("Thermocouple High Fault");
-      if (fault & MAX31856_FAULT_TCLOW)   Serial.println("Thermocouple Low Fault");
-      if (fault & MAX31856_FAULT_OVUV)    Serial.println("Over/Under Voltage Fault");
-      if (fault & MAX31856_FAULT_OPEN)    Serial.println("Thermocouple Open Fault");
-      return true;
-    }
-    else {
-      return false;
-    }
+    if (fault & MAX31856_FAULT_CJRANGE)
+      Serial.println("Cold Junction Range Fault");
+    if (fault & MAX31856_FAULT_TCRANGE)
+      Serial.println("Thermocouple Range Fault");
+    if (fault & MAX31856_FAULT_CJHIGH)
+      Serial.println("Cold Junction High Fault");
+    if (fault & MAX31856_FAULT_CJLOW)
+      Serial.println("Cold Junction Low Fault");
+    if (fault & MAX31856_FAULT_TCHIGH)
+      Serial.println("Thermocouple High Fault");
+    if (fault & MAX31856_FAULT_TCLOW)
+      Serial.println("Thermocouple Low Fault");
+    if (fault & MAX31856_FAULT_OVUV)
+      Serial.println("Over/Under Voltage Fault");
+    if (fault & MAX31856_FAULT_OPEN)
+      Serial.println("Thermocouple Open Fault");
+    return true;
+  }
+  else
+  {
+    return false;
+  }
 }
 
 void SendNotifications(float kilnTemperature)
@@ -106,10 +115,11 @@ void SendNotifications(float kilnTemperature)
   }
 }
 
-void TemperatureTimeProcess() 
-{ 
-  if (!HasFault(maxthermo.readFault())) {
-    // LED_Thermocouple_Status.setReadyState(true);
+void TemperatureTimeProcess()
+{
+  if (!HasFault(maxthermo.readFault()))
+  {
+    LED_Thermocouple_Status.setStatus(LED_Thermocouple_Status.ON);
 
     float kilnTempInCelsius = maxthermo.readThermocoupleTemperature();
     float kilnTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(kilnTempInCelsius);
@@ -125,61 +135,64 @@ void TemperatureTimeProcess()
   }
 }
 
-void WifiManagerPortalDisplayed(WiFiManager *myWiFiManager) {
-  Serial.println("Wifi Portal Displayed");
+void WifiManagerPortalDisplayed(WiFiManager *myWiFiManager)
+{
+  Serial.println("DEBUG: Wifi Portal Displayed");
 }
 
-void WifiManagerWifiConnected() {
+void WifiManagerWifiConnected()
+{
   Serial.println("DEBUG: Wifi Connected");
-  // LED_Wifi_Status.setReadyState(true);
+  LED_Wifi_Status.setStatus(LED_Wifi_Status.ON);
 }
 
-void setup() {
+void setup()
+{
   Serial.begin(SERIAL_BAUD_RATE);
-  delay(5000);
+  delay(5000); //for debugging purposes, enough time to start the serial console
 
-  // LED_Thermocouple_Status.init(PIN_THERMOCOUPLE_LED_STATUS);
+  LED_Thermocouple_Status.init(PIN_THERMOCOUPLE_LED_STATUS);
   LED_Wifi_Status.init(PIN_WIFI_LED_STATUS);
-  // LED_Power_Status.init(PIN_LED_POWER_STATUS);
-  // LED_BLYNK_Status.init(PIN_LED_BLYNK_STATUS);
+  LED_Power_Status.init(PIN_LED_POWER_STATUS);
+  LED_BLYNK_Status.init(PIN_LED_BLYNK_STATUS);
 
   // delay(5000);
 
-  // LED_Power_Status.setReadyState(true);
+  LED_Power_Status.setStatus(LED_Power_Status.ON);
 
   WiFiManager wifiManager;
   wifiManager.setAPCallback(WifiManagerPortalDisplayed);
   wifiManager.setSaveConfigCallback(WifiManagerWifiConnected);
 
   //TODO: maybe create a random suffix using https://github.com/marvinroger/ESP8266TrueRandom
-  bool wifiManagerSuccess = wifiManager.autoConnect("KilnMonitor_4da994b3");
-  if (wifiManagerSuccess)
+
+  if (wifiManager.autoConnect("KilnMonitor_4da994b3"))
   {
-    Serial.println("WifiManager reports true");
+    LED_Wifi_Status.setStatus(LED_Wifi_Status.ON);
+    Serial.println("DEBUG: WifiManager reports true");
   }
   else
   {
-    Serial.println("WifiManager reports false");
+    Serial.println("DEBUG: WifiManager reports false");
   }
 
   Blynk.config(BLYNK_AUTH_TOKEN);
-  
+
   timer.setInterval(TIME_BETWEEN_TEMPERATURE_READING, TemperatureTimeProcess);
-  
+
   maxthermo.begin();
   maxthermo.setThermocoupleType(MAX31856_TCTYPE_K);
 }
 
-void loop() {
+void loop()
+{
   Blynk.run();
   timer.run();
-  
-  // LED_Power_Status.updateLED();
-  // LED_Thermocouple_Status.updateLED();
-  // LED_Wifi_Status.updateLED();
-  
-  int blynkStatus = Blynk.connected();
-  // LED_BLYNK_Status.setReadyState(blynkStatus);
 
-  // LED_BLYNK_Status.updateLED();
+  LED_BLYNK_Status.setStatus(Blynk.connected());
+
+  LED_Power_Status.updateLED();
+  LED_Thermocouple_Status.updateLED();
+  LED_Wifi_Status.updateLED();
+  LED_BLYNK_Status.updateLED();
 }

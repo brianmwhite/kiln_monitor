@@ -3,8 +3,8 @@
 
 LEDContainer::LEDContainer()
 {
-  LED_STATE = LOW;
-  READY_STATE = false;
+  LED_SIGNAL = LOW;
+  READY_STATE = OFF;
   BLINK_DELAY_MILLISECONDS = 1000;
   NEXT_TIME_TO_BLINK = 0;
 }
@@ -23,40 +23,54 @@ void LEDContainer::init(int pin, int delay_in_milliseconds)
   updateLED();
 }
 
-void LEDContainer::setReadyState(bool status) {
-  READY_STATE = status;
+void LEDContainer::setStatus(LEDState state)
+{
+  READY_STATE = state;
+  updateLED();
+}
+
+void LEDContainer::setStatus(bool isOk)
+{
+  if (isOk)
+  {
+    setStatus(ON);
+  }
+  else
+  {
+    setStatus(OFF);
+  }
+}
+
+void LEDContainer::blinkLED()
+{
+  int TIME_NOW = millis();
+  if (TIME_NOW >= NEXT_TIME_TO_BLINK)
+  {
+    if (LED_SIGNAL == HIGH)
+    {
+      LED_SIGNAL = LOW;
+    }
+    else
+    {
+      LED_SIGNAL = HIGH;
+    }
+    NEXT_TIME_TO_BLINK = TIME_NOW + BLINK_DELAY_MILLISECONDS;
+  }
 }
 
 void LEDContainer::updateLED()
 {
-  if (READY_STATE)
+  if (READY_STATE == ON)
   {
-    LED_STATE = HIGH;
+    LED_SIGNAL = HIGH;
+  }
+  else if (READY_STATE == BLINK)
+  {
+    blinkLED();
   }
   else
   {
-    delay(2000);
-    int TIME_NOW = millis();
-
-    Serial.println(String("Now1: ") + TIME_NOW);
-    Serial.println(String("Next Time To blink: ") + NEXT_TIME_TO_BLINK);
-
-    if (TIME_NOW >= NEXT_TIME_TO_BLINK)
-    {
-      if (LED_STATE == HIGH)
-      {
-        LED_STATE = LOW;
-      }
-      else
-      {
-        LED_STATE = HIGH;
-      }
-      NEXT_TIME_TO_BLINK = TIME_NOW + BLINK_DELAY_MILLISECONDS;
-
-      Serial.println(String("LED State: ") + LED_STATE);
-      Serial.println(String("New Next Time to Blink: ") + NEXT_TIME_TO_BLINK);
-
-    }
+    LED_SIGNAL = LOW;
   }
-  digitalWrite(PIN, LED_STATE);
+  digitalWrite(PIN, LED_SIGNAL);
 }

@@ -13,10 +13,10 @@
 #include <WiFiManager.h> //https://github.com/tzapu/WiFiManager
 
 //pin definitions
-#define PIN_THERMOCOUPLE_LED_STATUS 4
-#define PIN_WIFI_LED_STATUS 2
-#define PIN_LED_BLYNK_STATUS 16
-#define PIN_LED_POWER_STATUS 5
+#define PIN_THERMOCOUPLE_LED_STATUS 4 //yellow
+#define PIN_WIFI_LED_STATUS 5 //blue
+#define PIN_LED_BLYNK_STATUS 16 //green
+#define PIN_LED_POWER_STATUS 2 //red
 
 //thermocouple pins
 #define spi_cs 12

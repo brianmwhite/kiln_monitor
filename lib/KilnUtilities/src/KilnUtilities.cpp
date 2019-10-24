@@ -52,7 +52,8 @@ string KilnUtilities::LookUpConeValueFromFahrenheit(float tempInF)
 
 float KilnUtilities::LookUpTemperatureValueFromCone(string cone) {
   float tempInF = 0.0;
-  if (cone == "10") {tempInF=2345;}
+  if (cone == "-1") {tempInF=82;} //fake cone for testing
+  else if (cone == "10") {tempInF=2345;}
   else if (cone == "9") {tempInF=2300;}
   else if (cone == "8") {tempInF=2273;}
   else if (cone == "7") {tempInF=2262;}

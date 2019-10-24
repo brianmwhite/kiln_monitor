@@ -2,10 +2,11 @@
 
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-#include <BlynkSimpleEsp8266.h>
 #include <Adafruit_MAX31856.h>
+#include <BlynkSimpleEsp8266.h>
 #include "KilnUtilities.h"
 #include "LEDContainer.h"
+#include <string>
 
 //needed for wifimanager
 #include <DNSServer.h>
@@ -25,14 +26,17 @@
 #define spi_clk 15
 
 KilnUtilities kiln;
-float temperatureForTargetTemperatureNotification = kiln.LookUpTemperatureValueFromCone("6");
+
+std::string targetCone = "6";
+long TIME_BETWEEN_TEMPERATURE_READING = 1000L;
 float temperatureForCoolDownNotification = 90.0;
 
-float temperatureForTooHotTargetTemperatureNotification = temperatureForTargetTemperatureNotification + 100;
+float temperatureForTargetTemperatureNotification = kiln.LookUpTemperatureValueFromCone(targetCone);
+float temperatureForTooHotTargetTemperatureNotification = temperatureForTargetTemperatureNotification + 10;
 int LowTemperatureThreshold = 10;
 
-long TIME_BETWEEN_TEMPERATURE_READING = 10000L;
 int SERIAL_BAUD_RATE = 115200;
+int MAX_THERMOCOUPLE_TEMPERATURE_CELSIUS = 1800;
 
 //make sure to also update the build flags in platformio.ini to include something like:
 //-D EXAMPLE_ENV_VARIABLE_NAME=\"${sysenv.EXAMPLE_ENV_VARIABLE_NAME}\"
@@ -54,7 +58,7 @@ bool hasNotifiedForTargetLowTemperature = false;
 bool hasLowTemperatureNotificationBeenUnlocked = false;
 bool hasNotifiedForTargetTooHighTemperature = false;
 
-bool HasFault(uint8_t fault)
+bool CheckForThermocoupleFault(uint8_t fault)
 {
   if (fault)
   {
@@ -95,21 +99,39 @@ void SendNotifications(float kilnTemperature)
 
   if (kilnTemperature <= temperatureForCoolDownNotification && !hasNotifiedForTargetLowTemperature && hasLowTemperatureNotificationBeenUnlocked)
   {
-    Blynk.notify("Kiln has cooled down.");
+    String notification = "Kiln has cooled down to ";
+    notification += kilnTemperature;
+    notification += "\u00B0F";
+
+    Blynk.notify(notification);
     hasNotifiedForTargetLowTemperature = true;
-    Serial.println("DEBUG: Notification Sent for Kiln Cooled Down");
+    Serial.println(notification);
   }
 
   if (kilnTemperature >= temperatureForTargetTemperatureNotification && !hasNotifiedForTargetHighTemperature)
   {
-    Blynk.notify("Kiln has reached target cone temperature");
+    String notification = "Kiln has reached target cone temperature of CONE ";
+    notification += targetCone.c_str();
+    notification += " [";
+    notification += temperatureForTargetTemperatureNotification;
+    notification += "\u00B0F] / Actual temperature is ";
+    notification += kilnTemperature;
+    notification += "\u00B0F";
+
+    Blynk.notify(notification);
     hasNotifiedForTargetHighTemperature = true;
-    Serial.println("DEBUG: Notification Sent for Target Cone Temperature Reached");
+    Serial.println(notification);
   }
 
   if (kilnTemperature >= temperatureForTooHotTargetTemperatureNotification && !hasNotifiedForTargetTooHighTemperature)
   {
-    Blynk.notify("Warning: Kiln has exceeded target cone temperature.");
+    String notification = "Warning: Kiln has exceeded target CONE ";
+    notification += targetCone.c_str();
+    notification += "/ Temperature is ";
+    notification += kilnTemperature;
+    notification += " \u00B0F";
+    
+    Blynk.notify(notification);
     hasNotifiedForTargetTooHighTemperature = true;
     Serial.println("DEBUG: Notification Sent for exceeding target cone temperature");
   }
@@ -117,30 +139,37 @@ void SendNotifications(float kilnTemperature)
 
 void TemperatureTimeProcess()
 {
-  if (!HasFault(maxthermo.readFault()))
+  if (!CheckForThermocoupleFault(maxthermo.readFault()))
   {
     LED_Thermocouple_Status.setStatus(LED_Thermocouple_Status.ON);
 
     float kilnTempInCelsius = maxthermo.readThermocoupleTemperature();
-    float kilnTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(kilnTempInCelsius);
-
     float boardTempInCelsius = maxthermo.readCJTemperature();
-    float boardTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(boardTempInCelsius);
 
-    Serial.println(String("DEBUG: ") + kilnTempInFahrenheit);
-    Blynk.virtualWrite(V5, kilnTempInFahrenheit);
-    Blynk.virtualWrite(V6, boardTempInFahrenheit);
+    if (isnan(kilnTempInCelsius) || isnan(boardTempInCelsius) || kilnTempInCelsius > MAX_THERMOCOUPLE_TEMPERATURE_CELSIUS) 
+    {
+      Serial.println("DEBUG: Non fault related thermocouple issue with temperature reading.");
+    }
+    else 
+    {
+      float kilnTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(kilnTempInCelsius);
+      float boardTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(boardTempInCelsius);
 
-    SendNotifications(kilnTempInFahrenheit);
+      Serial.println(String("DEBUG: ") + kilnTempInFahrenheit);
+      Blynk.virtualWrite(V5, kilnTempInFahrenheit);
+      Blynk.virtualWrite(V6, boardTempInFahrenheit);
+
+      SendNotifications(kilnTempInFahrenheit);
+    }
   }
 }
 
-void WifiManagerPortalDisplayed(WiFiManager *myWiFiManager)
+void WifiManagerPortalDisplayedEvent(WiFiManager *myWiFiManager)
 {
   Serial.println("DEBUG: Wifi Portal Displayed");
 }
 
-void WifiManagerWifiConnected()
+void WifiManagerWifiConnectedEvent()
 {
   Serial.println("DEBUG: Wifi Connected");
   LED_Wifi_Status.setStatus(LED_Wifi_Status.ON);
@@ -149,20 +178,18 @@ void WifiManagerWifiConnected()
 void setup()
 {
   Serial.begin(SERIAL_BAUD_RATE);
-  delay(5000); //for debugging purposes, enough time to start the serial console
+  // delay(5000); //for debugging purposes, enough time to start the serial console
 
   LED_Thermocouple_Status.init(PIN_THERMOCOUPLE_LED_STATUS);
   LED_Wifi_Status.init(PIN_WIFI_LED_STATUS);
   LED_Power_Status.init(PIN_LED_POWER_STATUS);
   LED_BLYNK_Status.init(PIN_LED_BLYNK_STATUS);
 
-  // delay(5000);
-
   LED_Power_Status.setStatus(LED_Power_Status.ON);
 
   WiFiManager wifiManager;
-  wifiManager.setAPCallback(WifiManagerPortalDisplayed);
-  wifiManager.setSaveConfigCallback(WifiManagerWifiConnected);
+  wifiManager.setAPCallback(WifiManagerPortalDisplayedEvent);
+  wifiManager.setSaveConfigCallback(WifiManagerWifiConnectedEvent);
 
   //TODO: maybe create a random suffix using https://github.com/marvinroger/ESP8266TrueRandom
 

@@ -8,6 +8,17 @@
 #include <BlynkSimpleWiFiShield101.h>
 #include "KilnUtilities.h"
 #include "LEDContainer.h"
+
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+ 
+Adafruit_SSD1306 display = Adafruit_SSD1306(128, 32, &Wire);
+#define BUTTON_A  9
+#define BUTTON_B  6
+#define BUTTON_C  5
+
 // #include <string>
 
 //needed for wifimanager
@@ -190,12 +201,32 @@ void TemperatureTimeProcess()
 void setup()
 {
   Serial.begin(SERIAL_BAUD_RATE);
+  delay(5000); //for debugging purposes, enough time to start the serial console
+
+
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Address 0x3C for 128x32
+  display.display();
+
+  delay(1000);
+ 
+  // Clear the buffer.
+  display.clearDisplay();
+  display.display();
 
   //Configure pins for Adafruit ATWINC1500 Feather
   WiFi.setPins(8,7,4,2);
 
-  delay(5000); //for debugging purposes, enough time to start the serial console
+  pinMode(BUTTON_A, INPUT_PULLUP);
+  pinMode(BUTTON_B, INPUT_PULLUP);
+  pinMode(BUTTON_C, INPUT_PULLUP);
 
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0,0);
+  display.println("hello world.");
+  display.setCursor(0,0);
+  display.display(); // actually display all of the above
+  
   LED_Thermocouple_Status.init(PIN_THERMOCOUPLE_LED_STATUS);
   LED_Wifi_Status.init(PIN_WIFI_LED_STATUS);
   LED_Power_Status.init(PIN_LED_POWER_STATUS);
@@ -239,4 +270,11 @@ void loop()
   LED_Thermocouple_Status.updateLED();
   LED_Wifi_Status.updateLED();
   LED_BLYNK_Status.updateLED();
+
+    if(!digitalRead(BUTTON_A)) display.print("A");
+  if(!digitalRead(BUTTON_B)) display.print("B");
+  if(!digitalRead(BUTTON_C)) display.print("C");
+  delay(10);
+  yield();
+  display.display();
 }

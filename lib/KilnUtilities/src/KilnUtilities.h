@@ -1,8 +1,8 @@
 #ifndef __KilnUtilities_H
 #define __KilnUtilities_H
 
-#include <string>
-using namespace std;
+// #include <string>
+// using namespace std;
 
 class KilnUtilities {
 
@@ -10,8 +10,8 @@ class KilnUtilities {
         KilnUtilities() {}
         float ConvertCelsiusToFahrenheit(float temperatureInCelsius);
         float ConvertFahrenheitToCelsius(float temperatureInFahrenheit);
-        string LookUpConeValueFromFahrenheit(float tempInF);
-        float LookUpTemperatureValueFromCone(string cone);
+        // string LookUpConeValueFromFahrenheit(float tempInF);
+        // float LookUpTemperatureValueFromCone(string cone);
 
 };
 

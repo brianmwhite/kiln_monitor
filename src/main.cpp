@@ -1,41 +1,43 @@
 #define BLYNK_PRINT Serial
 
 #include <Arduino.h>
-#include <ESP8266WiFi.h>
+// #include <ESP8266WiFi.h>
 #include <Adafruit_MAX31856.h>
-#include <BlynkSimpleEsp8266.h>
+// #include <BlynkSimpleEsp8266.h>
+#include <WiFi101.h>
+#include <BlynkSimpleWiFiShield101.h>
 #include "KilnUtilities.h"
 #include "LEDContainer.h"
-#include <string>
+// #include <string>
 
 //needed for wifimanager
-#include <DNSServer.h>
-#include <ESP8266WebServer.h>
-#include <WiFiManager.h> //https://github.com/tzapu/WiFiManager
+// #include <DNSServer.h>
+// #include <ESP8266WebServer.h>
+// #include <WiFiManager.h> //https://github.com/tzapu/WiFiManager
 
 //pin definitions
-#define PIN_THERMOCOUPLE_LED_STATUS 4 //yellow
-#define PIN_WIFI_LED_STATUS 5 //blue
-#define PIN_LED_BLYNK_STATUS 16 //green
-#define PIN_LED_POWER_STATUS 2 //red
+#define PIN_THERMOCOUPLE_LED_STATUS 13 //yellow
+#define PIN_WIFI_LED_STATUS 11 //blue
+#define PIN_LED_BLYNK_STATUS 10 //green
+#define PIN_LED_POWER_STATUS 12 //red
 
 //thermocouple pins
-#define spi_cs 12
-#define spi_mosi 13
-#define spi_miso 14
-#define spi_clk 15
+#define spi_cs 19
+#define spi_mosi 23
+#define spi_miso 22
+#define spi_clk 24
 
 KilnUtilities kiln;
 
-std::string targetCone = "6";
+// std::string targetCone = "6";
 long TIME_BETWEEN_TEMPERATURE_READING = 1000L;
 float temperatureForCoolDownNotification = 90.0;
 
-float temperatureForTargetTemperatureNotification = kiln.LookUpTemperatureValueFromCone(targetCone);
+float temperatureForTargetTemperatureNotification = 2232;//kiln.LookUpTemperatureValueFromCone(targetCone);
 float temperatureForTooHotTargetTemperatureNotification = temperatureForTargetTemperatureNotification + 10;
 int LowTemperatureThreshold = 10;
 
-int SERIAL_BAUD_RATE = 115200;
+int SERIAL_BAUD_RATE = 9600;
 int MAX_THERMOCOUPLE_TEMPERATURE_CELSIUS = 1800;
 
 //make sure to also update the build flags in platformio.ini to include something like:
@@ -45,13 +47,23 @@ int MAX_THERMOCOUPLE_TEMPERATURE_CELSIUS = 1800;
 char BLYNK_AUTH_TOKEN[] = KILN_BLYNK_AUTH_TOKEN_ENVIRONMENT_VARIABLE;
 #endif
 
+#ifdef KILN_WIFI_SSID
+  char ssid[] = KILN_WIFI_SSID;
+#endif
+
+#ifdef KILN_WIFI_PWD
+  char pass[] = KILN_WIFI_PWD;
+#endif
+
+
 LEDContainer LED_Thermocouple_Status;
 LEDContainer LED_Wifi_Status;
 LEDContainer LED_Power_Status;
 LEDContainer LED_BLYNK_Status;
 
 BlynkTimer timer;
-Adafruit_MAX31856 maxthermo = Adafruit_MAX31856(spi_cs, spi_mosi, spi_miso, spi_clk);
+// Adafruit_MAX31856 maxthermo = Adafruit_MAX31856(spi_cs, spi_mosi, spi_miso, spi_clk);
+Adafruit_MAX31856 maxthermo = Adafruit_MAX31856(spi_cs);
 
 bool hasNotifiedForTargetHighTemperature = false;
 bool hasNotifiedForTargetLowTemperature = false;
@@ -111,7 +123,7 @@ void SendNotifications(float kilnTemperature)
   if (kilnTemperature >= temperatureForTargetTemperatureNotification && !hasNotifiedForTargetHighTemperature)
   {
     String notification = "Kiln has reached target cone temperature of CONE ";
-    notification += targetCone.c_str();
+    notification += "6";//targetCone.c_str();
     notification += " [";
     notification += temperatureForTargetTemperatureNotification;
     notification += "\u00B0F] / Actual temperature is ";
@@ -126,7 +138,7 @@ void SendNotifications(float kilnTemperature)
   if (kilnTemperature >= temperatureForTooHotTargetTemperatureNotification && !hasNotifiedForTargetTooHighTemperature)
   {
     String notification = "Warning: Kiln has exceeded target CONE ";
-    notification += targetCone.c_str();
+    notification += "6";//targetCone.c_str();
     notification += "/ Temperature is ";
     notification += kilnTemperature;
     notification += " \u00B0F";
@@ -164,21 +176,25 @@ void TemperatureTimeProcess()
   }
 }
 
-void WifiManagerPortalDisplayedEvent(WiFiManager *myWiFiManager)
-{
-  Serial.println("DEBUG: Wifi Portal Displayed");
-}
+// void WifiManagerPortalDisplayedEvent(WiFiManager *myWiFiManager)
+// {
+//   Serial.println("DEBUG: Wifi Portal Displayed");
+// }
 
-void WifiManagerWifiConnectedEvent()
-{
-  Serial.println("DEBUG: Wifi Connected");
-  LED_Wifi_Status.setStatus(LED_Wifi_Status.ON);
-}
+// void WifiManagerWifiConnectedEvent()
+// {
+//   Serial.println("DEBUG: Wifi Connected");
+//   LED_Wifi_Status.setStatus(LED_Wifi_Status.ON);
+// }
 
 void setup()
 {
   Serial.begin(SERIAL_BAUD_RATE);
-  // delay(5000); //for debugging purposes, enough time to start the serial console
+
+  //Configure pins for Adafruit ATWINC1500 Feather
+  WiFi.setPins(8,7,4,2);
+
+  delay(5000); //for debugging purposes, enough time to start the serial console
 
   LED_Thermocouple_Status.init(PIN_THERMOCOUPLE_LED_STATUS);
   LED_Wifi_Status.init(PIN_WIFI_LED_STATUS);
@@ -187,23 +203,24 @@ void setup()
 
   LED_Power_Status.setStatus(LED_Power_Status.ON);
 
-  WiFiManager wifiManager;
-  wifiManager.setAPCallback(WifiManagerPortalDisplayedEvent);
-  wifiManager.setSaveConfigCallback(WifiManagerWifiConnectedEvent);
+  // WiFiManager wifiManager;
+  // wifiManager.setAPCallback(WifiManagerPortalDisplayedEvent);
+  // wifiManager.setSaveConfigCallback(WifiManagerWifiConnectedEvent);
 
   //TODO: maybe create a random suffix using https://github.com/marvinroger/ESP8266TrueRandom
 
-  if (wifiManager.autoConnect("KilnMonitor_4da994b3"))
-  {
-    LED_Wifi_Status.setStatus(LED_Wifi_Status.ON);
-    Serial.println("DEBUG: WifiManager reports true");
-  }
-  else
-  {
-    Serial.println("DEBUG: WifiManager reports false");
-  }
+  // if (wifiManager.autoConnect("KilnMonitor_4da994b3"))
+  // {
+  //   LED_Wifi_Status.setStatus(LED_Wifi_Status.ON);
+  //   Serial.println("DEBUG: WifiManager reports true");
+  // }
+  // else
+  // {
+  //   Serial.println("DEBUG: WifiManager reports false");
+  // }
 
-  Blynk.config(BLYNK_AUTH_TOKEN);
+  // Blynk.config(BLYNK_AUTH_TOKEN);
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
 
   timer.setInterval(TIME_BETWEEN_TEMPERATURE_READING, TemperatureTimeProcess);
 

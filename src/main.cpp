@@ -81,12 +81,75 @@ bool hasNotifiedForTargetLowTemperature = false;
 bool hasLowTemperatureNotificationBeenUnlocked = false;
 bool hasNotifiedForTargetTooHighTemperature = false;
 
+int GetOLEDVerticalCoordiatesFromLine(int line)
+{
+  return (line - 1) * 8;
+}
+
+void PrepDisplayLineForWriting (int line) 
+{
+  int verticalCoordinates = GetOLEDVerticalCoordiatesFromLine(line);
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+  display.setCursor(0,verticalCoordinates);
+}
+
+void WriteThermocoupleFaultToDisplay(String faultText) 
+{
+  PrepDisplayLineForWriting(1);
+  display.print(faultText);
+  display.display();
+}
+
+void WriteTemperatureToDisplay(float kilnTemp, float boardTemp) 
+{
+  PrepDisplayLineForWriting(1);
+  display.print("Kiln Temp:");
+  display.print(kilnTemp);
+  display.cp437(true);
+  display.write(167);
+  display.print("F");
+  display.display();
+}
+
+void WriteBlynkStatusToDisplay(bool blynkStatus)
+{
+  PrepDisplayLineForWriting(2);
+  display.print("Blynk:");
+  if (blynkStatus) {
+    display.print("Connected");
+  } else {
+    display.print("Disconnected");
+  }
+  display.display();
+}
+
+void WriteWiFiStatusToDisplay(char* SSID, String ipAddr)
+{
+  PrepDisplayLineForWriting(3);
+  display.print("IP:");
+  display.print(ipAddr);
+  display.setCursor(0,GetOLEDVerticalCoordiatesFromLine(4));
+  display.print("AP:");
+  display.print(SSID);
+  display.display();
+}
+
+void WriteNotificationStatusToDisplay(String notification)
+{
+  PrepDisplayLineForWriting(4);
+  display.print("*");
+  display.print(notification);
+  display.display();
+}
+
 bool CheckForThermocoupleFault(uint8_t fault)
 {
   if (fault)
   {
     LED_Thermocouple_Status.setStatus(LED_Thermocouple_Status.BLINK);
     Serial.println("DEBUG: Thermocouple Fault Detected");
+    WriteThermocoupleFaultToDisplay("Thermocouple Error");
 
     if (fault & MAX31856_FAULT_CJRANGE)
       Serial.println("Cold Junction Range Fault");
@@ -129,6 +192,7 @@ void SendNotifications(float kilnTemperature)
     Blynk.notify(notification);
     hasNotifiedForTargetLowTemperature = true;
     Serial.println(notification);
+    WriteNotificationStatusToDisplay("Kiln has cooled down");
   }
 
   if (kilnTemperature >= temperatureForTargetTemperatureNotification && !hasNotifiedForTargetHighTemperature)
@@ -144,6 +208,7 @@ void SendNotifications(float kilnTemperature)
     Blynk.notify(notification);
     hasNotifiedForTargetHighTemperature = true;
     Serial.println(notification);
+    WriteNotificationStatusToDisplay("Target Temp Achieved");
   }
 
   if (kilnTemperature >= temperatureForTooHotTargetTemperatureNotification && !hasNotifiedForTargetTooHighTemperature)
@@ -157,56 +222,9 @@ void SendNotifications(float kilnTemperature)
     Blynk.notify(notification);
     hasNotifiedForTargetTooHighTemperature = true;
     Serial.println("DEBUG: Notification Sent for exceeding target cone temperature");
+    WriteNotificationStatusToDisplay("Exceeded Target Temp");
   }
 }
-
-void WriteTemperatureToDisplay(float kilnTemp, float boardTemp) 
-{
-  // display.setCursor(0,0);
-  // display.print("                     ");
-  // display.display();
-  
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
-  display.setCursor(0,0);
-  display.print("Kiln Temp:");
-  display.print(kilnTemp);
-  display.cp437(true);
-  display.write(167);
-  display.print("F");
-  display.setCursor(0,0);
-  display.display();
-}
-
-void WriteBlynkStatusToDisplay(bool blynkStatus)
-{
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
-  display.setCursor(0,8);
-  display.print("Blynk:");
-  if (blynkStatus) {
-    display.print("Connected");
-  } else {
-    display.print("Disconnected");
-  }
-  display.setCursor(0,0);
-  display.display();
-}
-
-void WriteWiFiStatusToDisplay(char* SSID, String ipAddr)
-{
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
-  display.setCursor(0,16);
-  display.print("IP:");
-  display.print(ipAddr);
-  display.setCursor(0,24);
-  display.print("AP:");
-  display.print(SSID);
-  display.setCursor(0,0);
-  display.display();
-}
-
 
 void TemperatureTimeProcess()
 {

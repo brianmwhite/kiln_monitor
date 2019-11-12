@@ -160,6 +160,51 @@ void SendNotifications(float kilnTemperature)
   }
 }
 
+void WriteTemperatureToDisplay(float kilnTemp, float boardTemp) 
+{
+  // display.setCursor(0,0);
+  // display.print("                     ");
+  // display.display();
+  
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+  display.setCursor(0,0);
+  display.print("Kiln Temp:");
+  display.print(kilnTemp);
+  display.setCursor(0,0);
+  display.display();
+}
+
+void WriteBlynkStatusToDisplay(bool blynkStatus)
+{
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+  display.setCursor(0,8);
+  display.print("Blynk:");
+  if (blynkStatus) {
+    display.print("Connected");
+  } else {
+    display.print("Disconnected");
+  }
+  display.setCursor(0,0);
+  display.display();
+}
+
+void WriteWiFiStatusToDisplay(char* SSID, String ipAddr)
+{
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+  display.setCursor(0,16);
+  display.print("IP:");
+  display.print(ipAddr);
+  display.setCursor(0,24);
+  display.print("AP:");
+  display.print(SSID);
+  display.setCursor(0,0);
+  display.display();
+}
+
+
 void TemperatureTimeProcess()
 {
   if (!CheckForThermocoupleFault(maxthermo.readFault()))
@@ -179,12 +224,20 @@ void TemperatureTimeProcess()
       float boardTempInFahrenheit = kiln.ConvertCelsiusToFahrenheit(boardTempInCelsius);
 
       Serial.println(String("DEBUG: ") + kilnTempInFahrenheit);
+      WriteTemperatureToDisplay(kilnTempInFahrenheit, boardTempInFahrenheit);
       Blynk.virtualWrite(V5, kilnTempInFahrenheit);
       Blynk.virtualWrite(V6, boardTempInFahrenheit);
 
       SendNotifications(kilnTempInFahrenheit);
     }
   }
+}
+
+String ipToString(IPAddress ip){
+  String s="";
+  for (int i=0; i<4; i++)
+    s += i  ? "." + String(ip[i]) : String(ip[i]);
+  return s;
 }
 
 // void WifiManagerPortalDisplayedEvent(WiFiManager *myWiFiManager)
@@ -219,13 +272,6 @@ void setup()
   pinMode(BUTTON_A, INPUT_PULLUP);
   pinMode(BUTTON_B, INPUT_PULLUP);
   pinMode(BUTTON_C, INPUT_PULLUP);
-
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0,0);
-  display.println("hello world.");
-  display.setCursor(0,0);
-  display.display(); // actually display all of the above
   
   LED_Thermocouple_Status.init(PIN_THERMOCOUPLE_LED_STATUS);
   LED_Wifi_Status.init(PIN_WIFI_LED_STATUS);
@@ -252,6 +298,7 @@ void setup()
 
   // Blynk.config(BLYNK_AUTH_TOKEN);
   Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+  WriteWiFiStatusToDisplay(WiFi.SSID(), ipToString(WiFi.localIP()));
 
   timer.setInterval(TIME_BETWEEN_TEMPERATURE_READING, TemperatureTimeProcess);
 
@@ -265,16 +312,20 @@ void loop()
   timer.run();
 
   LED_BLYNK_Status.setStatus(Blynk.connected());
+  WriteBlynkStatusToDisplay(Blynk.connected());
 
   LED_Power_Status.updateLED();
   LED_Thermocouple_Status.updateLED();
   LED_Wifi_Status.updateLED();
   LED_BLYNK_Status.updateLED();
 
-    if(!digitalRead(BUTTON_A)) display.print("A");
-  if(!digitalRead(BUTTON_B)) display.print("B");
-  if(!digitalRead(BUTTON_C)) display.print("C");
-  delay(10);
-  yield();
-  display.display();
+  // if (!digitalRead(BUTTON_A))
+  //   display.print("A");
+  // if (!digitalRead(BUTTON_B))
+  //   display.print("B");
+  // if (!digitalRead(BUTTON_C))
+  //   display.print("C");
+  // delay(10);
+  // yield();
+  // display.display();
 }

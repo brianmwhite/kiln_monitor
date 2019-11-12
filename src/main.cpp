@@ -171,6 +171,9 @@ void WriteTemperatureToDisplay(float kilnTemp, float boardTemp)
   display.setCursor(0,0);
   display.print("Kiln Temp:");
   display.print(kilnTemp);
+  display.cp437(true);
+  display.write(167);
+  display.print("F");
   display.setCursor(0,0);
   display.display();
 }

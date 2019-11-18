@@ -5,6 +5,7 @@
 #include <Adafruit_MAX31856.h>
 // #include <BlynkSimpleEsp8266.h>
 #include <WiFi101.h>
+#include <WiFiMDNSResponder.h>
 #include <BlynkSimpleWiFiShield101.h>
 #include "KilnUtilities.h"
 #include "LEDContainer.h"
@@ -38,6 +39,11 @@ Adafruit_SSD1306 display = Adafruit_SSD1306(128, 32, &Wire);
 #define spi_miso 22
 #define spi_clk 24
 
+//wifi ap provisioning
+char mdnsName[] = "kilnmonitor";
+WiFiServer server(80);
+WiFiMDNSResponder mdnsResponder;
+
 KilnUtilities kiln;
 
 // std::string targetCone = "6";
@@ -58,13 +64,13 @@ int MAX_THERMOCOUPLE_TEMPERATURE_CELSIUS = 1800;
 char BLYNK_AUTH_TOKEN[] = KILN_BLYNK_AUTH_TOKEN_ENVIRONMENT_VARIABLE;
 #endif
 
-#ifdef KILN_WIFI_SSID
-  char ssid[] = KILN_WIFI_SSID;
-#endif
+// #ifdef KILN_WIFI_SSID
+//   char ssid[] = KILN_WIFI_SSID;
+// #endif
 
-#ifdef KILN_WIFI_PWD
-  char pass[] = KILN_WIFI_PWD;
-#endif
+// #ifdef KILN_WIFI_PWD
+//   char pass[] = KILN_WIFI_PWD;
+// #endif
 
 
 LEDContainer LED_Thermocouple_Status;
@@ -275,7 +281,7 @@ String ipToString(IPAddress ip){
 void setup()
 {
   Serial.begin(SERIAL_BAUD_RATE);
-  delay(5000); //for debugging purposes, enough time to start the serial console
+  // delay(5000); //for debugging purposes, enough time to start the serial console
 
 
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Address 0x3C for 128x32
@@ -317,8 +323,28 @@ void setup()
   //   Serial.println("DEBUG: WifiManager reports false");
   // }
 
-  // Blynk.config(BLYNK_AUTH_TOKEN);
-  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+  WiFi.beginProvision();
+
+  LED_Wifi_Status.setStatus(LED_Wifi_Status.BLINK);
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    LED_Wifi_Status.updateLED();
+  }
+  LED_Wifi_Status.setStatus(LED_Wifi_Status.ON);
+
+  server.begin();
+
+  if (!mdnsResponder.begin(mdnsName)) {
+    Serial.println("Failed to start MDNS responder!");
+    while(1);
+  }
+
+  Serial.print("Server listening at http://");
+  Serial.print(mdnsName);
+  Serial.println(".local/");
+
+  Blynk.config(BLYNK_AUTH_TOKEN);
+  // Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
   WriteWiFiStatusToDisplay(WiFi.SSID(), ipToString(WiFi.localIP()));
 
   timer.setInterval(TIME_BETWEEN_TEMPERATURE_READING, TemperatureTimeProcess);
@@ -329,6 +355,8 @@ void setup()
 
 void loop()
 {
+  mdnsResponder.poll();
+
   Blynk.run();
   timer.run();
 

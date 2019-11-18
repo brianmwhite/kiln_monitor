@@ -13,6 +13,9 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+//TODO: review ascii only led library
+//GitHub - greiman/SSD1306Ascii: Text only Arduino Library for SSD1306 OLED displays
+//https://github.com/greiman/SSD1306Ascii
  
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 32, &Wire);
 #define BUTTON_A  9
@@ -117,7 +120,7 @@ void WriteBlynkStatusToDisplay(bool blynkStatus)
   PrepDisplayLineForWriting(2);
   display.print("Blynk:");
   if (blynkStatus) {
-    display.print("Connected");
+    display.print("Connected   ");
   } else {
     display.print("Disconnected");
   }

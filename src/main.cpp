@@ -293,8 +293,9 @@ String ipToString(IPAddress ip){
 void setup()
 {
   Serial.begin(SERIAL_BAUD_RATE);
-  // delay(5000); //for debugging purposes, enough time to start the serial console
-
+  
+  //for debugging purposes, wait for serial port to connect
+  while (!Serial) {;}
 
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Address 0x3C for 128x32
   display.display();

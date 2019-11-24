@@ -118,6 +118,18 @@ void WriteTemperatureToDisplay(float kilnTemp, float boardTemp)
   display.display();
 }
 
+void WriteProvisioningInstructions() 
+{
+  PrepDisplayLineForWriting(1);
+  display.println("Connect wifi to:");
+	uint8_t mac[6];
+	char provSsid[13];
+  WiFi.macAddress(mac);
+  sprintf(provSsid, "wifi101-%.2X%.2X", mac[1], mac[0]);
+  display.println(provSsid);
+  display.display();
+}
+
 void WriteBlynkStatusToDisplay(bool blynkStatus)
 {
   PrepDisplayLineForWriting(2);
@@ -323,25 +335,33 @@ void setup()
   //   Serial.println("DEBUG: WifiManager reports false");
   // }
 
-  WiFi.beginProvision();
-
-  LED_Wifi_Status.setStatus(LED_Wifi_Status.BLINK);
-  while (WiFi.status() != WL_CONNECTED)
+  while (WiFi.beginProvision() != WL_CONNECTED) 
   {
+    LED_Wifi_Status.setStatus(LED_Wifi_Status.BLINK);
     LED_Wifi_Status.updateLED();
+    WriteProvisioningInstructions();
+    Serial.println("begin prov while");
   }
+
+    Serial.println("out of prov loop");
+
+
+  // while (WiFi.status() != WL_CONNECTED)
+  // {
+    
+  // }
   LED_Wifi_Status.setStatus(LED_Wifi_Status.ON);
 
-  server.begin();
+  // server.begin();
 
-  if (!mdnsResponder.begin(mdnsName)) {
-    Serial.println("Failed to start MDNS responder!");
-    while(1);
-  }
+  // if (!mdnsResponder.begin(mdnsName)) {
+  //   Serial.println("Failed to start MDNS responder!");
+  //   while(1);
+  // }
 
-  Serial.print("Server listening at http://");
-  Serial.print(mdnsName);
-  Serial.println(".local/");
+  // Serial.print("Server listening at http://");
+  // Serial.print(mdnsName);
+  // Serial.println(".local/");
 
   Blynk.config(BLYNK_AUTH_TOKEN);
   // Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);

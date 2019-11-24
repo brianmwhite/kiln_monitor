@@ -123,8 +123,12 @@ void WriteTemperatureToDisplay(float kilnTemp, float boardTemp)
 void WriteProvisioningInstructions() 
 {
   PrepDisplayLineForWriting(1);
-  display.println("Connect wifi to:");
-	uint8_t mac[6];
+  display.println("Set up by connecting");
+  display.println("to this Wifi AP:");
+  display.println("");
+	//copied ssid logic from wifi.cpp
+  //TODO: modify library to create a customized SSID and have a method to retrieve it
+  uint8_t mac[6];
 	char provSsid[13];
   WiFi.macAddress(mac);
   sprintf(provSsid, "wifi101-%.2X%.2X", mac[1], mac[0]);
@@ -302,8 +306,6 @@ void setup()
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Address 0x3C for 128x32
   display.display();
 
-  delay(1000);
- 
   // Clear the buffer.
   display.clearDisplay();
   display.display();
@@ -338,21 +340,17 @@ void setup()
   //   Serial.println("DEBUG: WifiManager reports false");
   // }
 
-  while (WiFi.beginProvision() != WL_CONNECTED) 
+  WiFi.beginProvision();
+  Serial.println("completed WiFi.beginProvision()");    
+
+  while (WiFi.status() != WL_CONNECTED)
   {
     LED_Wifi_Status.setStatus(LED_Wifi_Status.BLINK);
     LED_Wifi_Status.updateLED();
     WriteProvisioningInstructions();
-    Serial.println("begin prov while");
+    Serial.print(".");
   }
 
-    Serial.println("out of prov loop");
-
-
-  // while (WiFi.status() != WL_CONNECTED)
-  // {
-    
-  // }
   LED_Wifi_Status.setStatus(LED_Wifi_Status.ON);
 
   // server.begin();
@@ -368,6 +366,8 @@ void setup()
 
   Blynk.config(BLYNK_AUTH_TOKEN);
   // Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+  Serial.println("Connected to Wifi AP:");
+  Serial.println(WiFi.SSID());
   WriteWiFiStatusToDisplay(WiFi.SSID(), ipToString(WiFi.localIP()));
 
   timer.setInterval(TIME_BETWEEN_TEMPERATURE_READING, TemperatureTimeProcess);
@@ -385,6 +385,9 @@ void loop()
 
   LED_BLYNK_Status.setStatus(Blynk.connected());
   WriteBlynkStatusToDisplay(Blynk.connected());
+  //update SSID and IP as sometimes the Wifi101 library returned a blank SSID
+  WriteWiFiStatusToDisplay(WiFi.SSID(), ipToString(WiFi.localIP()));
+
 
   LED_Power_Status.updateLED();
   LED_Thermocouple_Status.updateLED();

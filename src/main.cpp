@@ -98,6 +98,8 @@ void PrepDisplayLineForWriting (int line)
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
   display.setCursor(0,verticalCoordinates);
+  display.print("                     ");
+  display.setCursor(0,verticalCoordinates);
 }
 
 void WriteThermocoupleFaultToDisplay(String faultText) 

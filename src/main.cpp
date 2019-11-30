@@ -87,6 +87,13 @@ bool hasNotifiedForTargetLowTemperature = false;
 bool hasLowTemperatureNotificationBeenUnlocked = false;
 bool hasNotifiedForTargetTooHighTemperature = false;
 
+int tempSequence[] = { 2345,2300,2273,2262,2232,2167,2142,2106,2088,2079,2046,2016,1987,1945,1888,1828,1789,1728,1688,1657,1607,1582,1539,1485,1456,1422,1360,1252,1252,1159,1112,1087 };
+String coneSequence[] = { "10","9","8","7","6","5","4","3","2","1","01","02","03","04","05","06","07","08","09","010","011","012","013","014","015","016","017","018","019","020","021","022" };
+int sequenceMax = 31;
+int sequenceLocation = 4;
+
+#define DEBOUNCE  100
+
 int GetOLEDVerticalCoordiatesFromLine(int line)
 {
   return (line - 1) * 8;
@@ -301,7 +308,7 @@ void setup()
   Serial.begin(SERIAL_BAUD_RATE);
   
   //for debugging purposes, wait for serial port to connect
-  while (!Serial) {;}
+  // while (!Serial) {;}
 
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Address 0x3C for 128x32
   display.display();
@@ -376,6 +383,59 @@ void setup()
   maxthermo.setThermocoupleType(MAX31856_TCTYPE_K);
 }
 
+void ShowMenu()
+{
+  bool inMenu = true;
+
+  while (inMenu)
+  {
+    PrepDisplayLineForWriting(4);
+    PrepDisplayLineForWriting(3);
+    PrepDisplayLineForWriting(2);
+    PrepDisplayLineForWriting(1);
+
+    display.println("Set target:");
+
+    display.print("CONE ");
+    display.print(coneSequence[sequenceLocation]);
+    display.display();
+
+    if (!digitalRead(BUTTON_A))
+    {
+      delay(DEBOUNCE);
+      inMenu = false;
+    }
+    if (!digitalRead(BUTTON_B))
+    {
+      delay(DEBOUNCE);
+      sequenceLocation++;
+      if (sequenceLocation > sequenceMax)
+      {
+        sequenceLocation = 0;
+      }
+      temperatureForTargetTemperatureNotification = tempSequence[sequenceLocation];
+      PrepDisplayLineForWriting(2);
+      display.print("CONE ");
+      display.print(coneSequence[sequenceLocation]);
+      display.display();
+    }
+    if (!digitalRead(BUTTON_C))
+    {
+      delay(DEBOUNCE);
+      sequenceLocation--;
+      if (sequenceLocation < 0)
+      {
+        sequenceLocation = sequenceMax;
+      }
+      temperatureForTargetTemperatureNotification = tempSequence[sequenceLocation];
+      PrepDisplayLineForWriting(2);
+      display.print("CONE ");
+      display.print(coneSequence[sequenceLocation]);
+      display.display();
+    }
+  }
+}
+
 void loop()
 {
   mdnsResponder.poll();
@@ -394,13 +454,11 @@ void loop()
   LED_Wifi_Status.updateLED();
   LED_BLYNK_Status.updateLED();
 
-  // if (!digitalRead(BUTTON_A))
-  //   display.print("A");
-  // if (!digitalRead(BUTTON_B))
-  //   display.print("B");
-  // if (!digitalRead(BUTTON_C))
-  //   display.print("C");
-  // delay(10);
-  // yield();
-  // display.display();
+  if (!digitalRead(BUTTON_A)) {
+    delay(DEBOUNCE);
+    delay(DEBOUNCE);
+    delay(DEBOUNCE);
+    ShowMenu();
+  }
+  
 }

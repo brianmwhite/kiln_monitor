@@ -9,7 +9,7 @@
 #include <BlynkSimpleWiFiShield101.h>
 #include "KilnUtilities.h"
 #include "LEDContainer.h"
-
+#include <FlashStorage.h> 
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -18,28 +18,13 @@
 //GitHub - greiman/SSD1306Ascii: Text only Arduino Library for SSD1306 OLED displays
 //https://github.com/greiman/SSD1306Ascii
  
-#include <FlashStorage.h> 
 
-typedef struct {
-  int ConeTargetSequenceLocation;
-  int CoolDownTargetSequenceLocation;
-  boolean HasSavedValues;
-} UserSetVariablesStructure;
 
-UserSetVariablesStructure UserSetVariables;
-FlashStorage(Storage_UserSetVariables, UserSetVariablesStructure);
 
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 32, &Wire);
 #define BUTTON_A  9
 #define BUTTON_B  6
 #define BUTTON_C  5
-
-// #include <string>
-
-//needed for wifimanager
-// #include <DNSServer.h>
-// #include <ESP8266WebServer.h>
-// #include <WiFiManager.h> //https://github.com/tzapu/WiFiManager
 
 //pin definitions
 #define PIN_THERMOCOUPLE_LED_STATUS 13 //yellow
@@ -60,7 +45,6 @@ WiFiMDNSResponder mdnsResponder;
 
 KilnUtilities kiln;
 
-// std::string targetCone = "6";
 long TIME_BETWEEN_TEMPERATURE_READING = 1000L;
 float temperatureForCoolDownNotification = 90.0;
 
@@ -78,22 +62,12 @@ int MAX_THERMOCOUPLE_TEMPERATURE_CELSIUS = 1800;
 char BLYNK_AUTH_TOKEN[] = KILN_BLYNK_AUTH_TOKEN_ENVIRONMENT_VARIABLE;
 #endif
 
-// #ifdef KILN_WIFI_SSID
-//   char ssid[] = KILN_WIFI_SSID;
-// #endif
-
-// #ifdef KILN_WIFI_PWD
-//   char pass[] = KILN_WIFI_PWD;
-// #endif
-
-
 LEDContainer LED_Thermocouple_Status;
 LEDContainer LED_Wifi_Status;
 LEDContainer LED_Power_Status;
 LEDContainer LED_BLYNK_Status;
 
 BlynkTimer timer;
-// Adafruit_MAX31856 maxthermo = Adafruit_MAX31856(spi_cs, spi_mosi, spi_miso, spi_clk);
 Adafruit_MAX31856 maxthermo = Adafruit_MAX31856(spi_cs);
 
 bool hasNotifiedForTargetHighTemperature = false;
@@ -111,6 +85,15 @@ int coolDownTargetSequenceValues [] = {80,90,100,110,120,130,140,150};
 String coolDownTargetSequenceLabels [] = {"80","90","100","110","120","130","140","150"};
 int coolDownSequenceNumberOfItems = 8;
 int coolDownTempDefaultStartLocation = 1;
+
+typedef struct {
+  int ConeTargetSequenceLocation;
+  int CoolDownTargetSequenceLocation;
+  boolean HasSavedValues;
+} UserSetVariablesStructure;
+
+UserSetVariablesStructure UserSetVariables;
+FlashStorage(Storage_UserSetVariables, UserSetVariablesStructure);
 
 #define DEBOUNCE  150
 
@@ -139,11 +122,20 @@ void WriteThermocoupleFaultToDisplay(String faultText)
 void WriteTemperatureToDisplay(float kilnTemp, float boardTemp) 
 {
   PrepDisplayLineForWriting(1);
-  display.print("Kiln Temp:");
+  display.print("T:");
   display.print(kilnTemp);
   display.cp437(true);
   display.write(167);
   display.print("F");
+  display.print(" |");
+  display.write(30);
+  display.print("C");
+  display.print(coneSequenceLabels[UserSetVariables.ConeTargetSequenceLocation]);
+  display.print(" ");
+  display.write(31);
+  display.print(coolDownTargetSequenceLabels[UserSetVariables.CoolDownTargetSequenceLocation]);
+  display.write(167);
+  // display.print("F");
   display.display();
 }
 
@@ -155,6 +147,8 @@ void WriteProvisioningInstructions()
   display.println("");
 	//copied ssid logic from wifi.cpp
   //TODO: modify library to create a customized SSID and have a method to retrieve it
+  //could use mac address or maybe create a random suffix using something like https://github.com/marvinroger/ESP8266TrueRandom
+
   uint8_t mac[6];
 	char provSsid[13];
   WiFi.macAddress(mac);
@@ -196,8 +190,7 @@ void WriteNotificationStatusToDisplay(String notification)
 
 void PrintCurrentSequenceValueToDisplay(String label, String valueSequence[], int sequenceLocation) 
 {
-    PrepDisplayLineForWriting(2);
-    display.cp437(true);
+    PrepDisplayLineForWriting(3);
     display.print(label);
     display.print(" ");
     display.print(valueSequence[sequenceLocation]);
@@ -206,22 +199,27 @@ void PrintCurrentSequenceValueToDisplay(String label, String valueSequence[], in
 
 void ClearAllDisplayLines()
 {
-    PrepDisplayLineForWriting(4);
-    PrepDisplayLineForWriting(3);
-    PrepDisplayLineForWriting(2);
-    PrepDisplayLineForWriting(1);
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+    display.setCursor(0,0);
+    display.display();
 }
 
 int ShowSequenceMenu(String label, String valueSequence[], int numberOfItemsInSequence, int StartLocation)
 {
+  //TODO: figure out how to display temp symbol just for target temperature display
   bool inMenu = true;
   int sequenceLocation = StartLocation;
+  ClearAllDisplayLines();
+  
+  PrepDisplayLineForWriting(1);
+  display.println("KILN MONITOR");
+  display.print("Set target:");
+  display.display();
 
   while (inMenu)
   {
-    ClearAllDisplayLines();
-
-    display.println("Set target:");
     PrintCurrentSequenceValueToDisplay(label, valueSequence, sequenceLocation);
 
     if (!digitalRead(BUTTON_A))
@@ -250,6 +248,7 @@ int ShowSequenceMenu(String label, String valueSequence[], int numberOfItemsInSe
       PrintCurrentSequenceValueToDisplay(label, valueSequence, sequenceLocation);
     }
   }
+  ClearAllDisplayLines();
   return sequenceLocation;
 }
 
@@ -285,22 +284,14 @@ bool CheckForThermocoupleFault(uint8_t fault)
     Serial.println("DEBUG: Thermocouple Fault Detected");
     WriteThermocoupleFaultToDisplay("Thermocouple Error");
 
-    if (fault & MAX31856_FAULT_CJRANGE)
-      Serial.println("Cold Junction Range Fault");
-    if (fault & MAX31856_FAULT_TCRANGE)
-      Serial.println("Thermocouple Range Fault");
-    if (fault & MAX31856_FAULT_CJHIGH)
-      Serial.println("Cold Junction High Fault");
-    if (fault & MAX31856_FAULT_CJLOW)
-      Serial.println("Cold Junction Low Fault");
-    if (fault & MAX31856_FAULT_TCHIGH)
-      Serial.println("Thermocouple High Fault");
-    if (fault & MAX31856_FAULT_TCLOW)
-      Serial.println("Thermocouple Low Fault");
-    if (fault & MAX31856_FAULT_OVUV)
-      Serial.println("Over/Under Voltage Fault");
-    if (fault & MAX31856_FAULT_OPEN)
-      Serial.println("Thermocouple Open Fault");
+    if (fault & MAX31856_FAULT_CJRANGE) Serial.println("Cold Junction Range Fault");
+    if (fault & MAX31856_FAULT_TCRANGE) Serial.println("Thermocouple Range Fault");
+    if (fault & MAX31856_FAULT_CJHIGH)  Serial.println("Cold Junction High Fault");
+    if (fault & MAX31856_FAULT_CJLOW)   Serial.println("Cold Junction Low Fault");
+    if (fault & MAX31856_FAULT_TCHIGH)  Serial.println("Thermocouple High Fault");
+    if (fault & MAX31856_FAULT_TCLOW)   Serial.println("Thermocouple Low Fault");
+    if (fault & MAX31856_FAULT_OVUV)    Serial.println("Over/Under Voltage Fault");
+    if (fault & MAX31856_FAULT_OPEN)    Serial.println("Thermocouple Open Fault");
     return true;
   }
   else
@@ -332,7 +323,7 @@ void SendNotifications(float kilnTemperature)
   if (kilnTemperature >= temperatureForTargetTemperatureNotification && !hasNotifiedForTargetHighTemperature)
   {
     String notification = "Kiln has reached target cone temperature of CONE ";
-    notification += "6";//targetCone.c_str();
+    notification += coneSequenceLabels[UserSetVariables.ConeTargetSequenceLocation];
     notification += " [";
     notification += temperatureForTargetTemperatureNotification;
     notification += "\u00B0F] / Actual temperature is ";
@@ -348,7 +339,7 @@ void SendNotifications(float kilnTemperature)
   if (kilnTemperature >= temperatureForTooHotTargetTemperatureNotification && !hasNotifiedForTargetTooHighTemperature)
   {
     String notification = "Warning: Kiln has exceeded target CONE ";
-    notification += "6";//targetCone.c_str();
+    notification += coneSequenceLabels[UserSetVariables.ConeTargetSequenceLocation];
     notification += "/ Temperature is ";
     notification += kilnTemperature;
     notification += " \u00B0F";
@@ -395,17 +386,6 @@ String ipToString(IPAddress ip){
   return s;
 }
 
-// void WifiManagerPortalDisplayedEvent(WiFiManager *myWiFiManager)
-// {
-//   Serial.println("DEBUG: Wifi Portal Displayed");
-// }
-
-// void WifiManagerWifiConnectedEvent()
-// {
-//   Serial.println("DEBUG: Wifi Connected");
-//   LED_Wifi_Status.setStatus(LED_Wifi_Status.ON);
-// }
-
 void setup()
 {
   Serial.begin(SERIAL_BAUD_RATE);
@@ -434,22 +414,6 @@ void setup()
 
   LED_Power_Status.setStatus(LED_Power_Status.ON);
 
-  // WiFiManager wifiManager;
-  // wifiManager.setAPCallback(WifiManagerPortalDisplayedEvent);
-  // wifiManager.setSaveConfigCallback(WifiManagerWifiConnectedEvent);
-
-  //TODO: maybe create a random suffix using https://github.com/marvinroger/ESP8266TrueRandom
-
-  // if (wifiManager.autoConnect("KilnMonitor_4da994b3"))
-  // {
-  //   LED_Wifi_Status.setStatus(LED_Wifi_Status.ON);
-  //   Serial.println("DEBUG: WifiManager reports true");
-  // }
-  // else
-  // {
-  //   Serial.println("DEBUG: WifiManager reports false");
-  // }
-
   WiFi.beginProvision();
   Serial.println("completed WiFi.beginProvision()");    
 
@@ -463,19 +427,7 @@ void setup()
 
   LED_Wifi_Status.setStatus(LED_Wifi_Status.ON);
 
-  // server.begin();
-
-  // if (!mdnsResponder.begin(mdnsName)) {
-  //   Serial.println("Failed to start MDNS responder!");
-  //   while(1);
-  // }
-
-  // Serial.print("Server listening at http://");
-  // Serial.print(mdnsName);
-  // Serial.println(".local/");
-
   Blynk.config(BLYNK_AUTH_TOKEN);
-  // Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
   Serial.println("Connected to Wifi AP:");
   Serial.println(WiFi.SSID());
   WriteWiFiStatusToDisplay(WiFi.SSID(), ipToString(WiFi.localIP()));

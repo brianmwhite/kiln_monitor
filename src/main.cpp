@@ -14,7 +14,18 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
- 
+
+#include <FlashStorage.h> 
+
+typedef struct {
+  int ConeTargetSequenceLocation;
+  int CoolDownTargetSequenceLocation;
+  boolean HasSavedValues;
+} UserSetVariablesStructure;
+
+UserSetVariablesStructure UserSetVariables;
+FlashStorage(Storage_UserSetVariables, UserSetVariablesStructure);
+
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 32, &Wire);
 #define BUTTON_A  9
 #define BUTTON_B  6
@@ -87,12 +98,18 @@ bool hasNotifiedForTargetLowTemperature = false;
 bool hasLowTemperatureNotificationBeenUnlocked = false;
 bool hasNotifiedForTargetTooHighTemperature = false;
 
-int tempSequence[] = { 2345,2300,2273,2262,2232,2167,2142,2106,2088,2079,2046,2016,1987,1945,1888,1828,1789,1728,1688,1657,1607,1582,1539,1485,1456,1422,1360,1252,1252,1159,1112,1087 };
-String coneSequence[] = { "10","9","8","7","6","5","4","3","2","1","01","02","03","04","05","06","07","08","09","010","011","012","013","014","015","016","017","018","019","020","021","022" };
-int sequenceMax = 31;
-int sequenceLocation = 4;
+int coneSequenceValues[] = { 2345,2300,2273,2262,2232,2167,2142,2106,2088,2079,2046,2016,1987,1945,1888,1828,1789,1728,1688,1657,1607,1582,1539,1485,1456,1422,1360,1252,1252,1159,1112,1087 };
+String coneSequenceLabels[] = { "10","9","8","7","6","5","4","3","2","1","01","02","03","04","05","06","07","08","09","010","011","012","013","014","015","016","017","018","019","020","021","022" };
+int coneSequenceNumberOfItems = 32;
+int coneSequenceDefaultStartLocation = 4;
 
-#define DEBOUNCE  100
+
+int coolDownTargetSequenceValues [] = {80,90,100,110,120,130,140,150};
+String coolDownTargetSequenceLabels [] = {"80","90","100","110","120","130","140","150"};
+int coolDownSequenceNumberOfItems = 8;
+int coolDownTempDefaultStartLocation = 1;
+
+#define DEBOUNCE  150
 
 int GetOLEDVerticalCoordiatesFromLine(int line)
 {
@@ -172,6 +189,89 @@ void WriteNotificationStatusToDisplay(String notification)
   display.print("*");
   display.print(notification);
   display.display();
+}
+
+void PrintCurrentSequenceValueToDisplay(String label, String valueSequence[], int sequenceLocation) 
+{
+    PrepDisplayLineForWriting(2);
+    display.cp437(true);
+    display.print(label);
+    display.print(" ");
+    display.print(valueSequence[sequenceLocation]);
+    display.display();
+}
+
+void ClearAllDisplayLines()
+{
+    PrepDisplayLineForWriting(4);
+    PrepDisplayLineForWriting(3);
+    PrepDisplayLineForWriting(2);
+    PrepDisplayLineForWriting(1);
+}
+
+int ShowSequenceMenu(String label, String valueSequence[], int numberOfItemsInSequence, int StartLocation)
+{
+  bool inMenu = true;
+  int sequenceLocation = StartLocation;
+
+  while (inMenu)
+  {
+    ClearAllDisplayLines();
+
+    display.println("Set target:");
+    PrintCurrentSequenceValueToDisplay(label, valueSequence, sequenceLocation);
+
+    if (!digitalRead(BUTTON_A))
+    {
+      delay(DEBOUNCE);
+      inMenu = false;
+    }
+    if (!digitalRead(BUTTON_B))
+    {
+      delay(DEBOUNCE);
+      sequenceLocation++;
+      if (sequenceLocation >= numberOfItemsInSequence)
+      {
+        sequenceLocation = 0;
+      }
+      PrintCurrentSequenceValueToDisplay(label, valueSequence, sequenceLocation);
+    }
+    if (!digitalRead(BUTTON_C))
+    {
+      delay(DEBOUNCE);
+      sequenceLocation--;
+      if (sequenceLocation < 0)
+      {
+        sequenceLocation = numberOfItemsInSequence - 1;
+      }
+      PrintCurrentSequenceValueToDisplay(label, valueSequence, sequenceLocation);
+    }
+  }
+  return sequenceLocation;
+}
+
+void ShowMenu()
+{
+  int coneSequenceStartLocation = coneSequenceDefaultStartLocation;
+  int coolDownTempStartLocation = coolDownTempDefaultStartLocation;
+
+  if (UserSetVariables.HasSavedValues)
+  {
+    coneSequenceStartLocation = UserSetVariables.ConeTargetSequenceLocation;
+    coolDownTempStartLocation = UserSetVariables.CoolDownTargetSequenceLocation;
+  }
+
+  int ConeTargetSequenceLocation = ShowSequenceMenu("CONE", coneSequenceLabels, coneSequenceNumberOfItems, coneSequenceStartLocation);
+  int CooldownTempSequenceLocation = ShowSequenceMenu("COOLDOWN", coolDownTargetSequenceLabels, coolDownSequenceNumberOfItems, coolDownTempStartLocation);
+  
+  temperatureForTargetTemperatureNotification = coneSequenceValues[ConeTargetSequenceLocation];
+  temperatureForCoolDownNotification = coolDownTargetSequenceValues[CooldownTempSequenceLocation];
+  
+  UserSetVariables.ConeTargetSequenceLocation = ConeTargetSequenceLocation;
+  UserSetVariables.CoolDownTargetSequenceLocation = CooldownTempSequenceLocation;
+  UserSetVariables.HasSavedValues = true;
+
+  Storage_UserSetVariables.write(UserSetVariables);
 }
 
 bool CheckForThermocoupleFault(uint8_t fault)
@@ -377,64 +477,34 @@ void setup()
   Serial.println(WiFi.SSID());
   WriteWiFiStatusToDisplay(WiFi.SSID(), ipToString(WiFi.localIP()));
 
+  UserSetVariables = Storage_UserSetVariables.read();
+
+  if (!UserSetVariables.HasSavedValues) 
+  {
+    Serial.println("No user saved values, show menu");
+    ShowMenu();
+  } 
+  else 
+  {
+    temperatureForTargetTemperatureNotification = coneSequenceValues[UserSetVariables.ConeTargetSequenceLocation];
+    temperatureForCoolDownNotification = coolDownTargetSequenceValues[UserSetVariables.CoolDownTargetSequenceLocation];
+    
+    Serial.println("UserSetVariables....");
+    Serial.print("target cone sequence location: ");
+    Serial.print(UserSetVariables.ConeTargetSequenceLocation);
+    Serial.println(".......");
+
+    Serial.print("cool down temp: ");
+    Serial.print(UserSetVariables.CoolDownTargetSequenceLocation);
+    Serial.println(".......");
+  }
+
   timer.setInterval(TIME_BETWEEN_TEMPERATURE_READING, TemperatureTimeProcess);
 
   maxthermo.begin();
   maxthermo.setThermocoupleType(MAX31856_TCTYPE_K);
 }
 
-void ShowMenu()
-{
-  bool inMenu = true;
-
-  while (inMenu)
-  {
-    PrepDisplayLineForWriting(4);
-    PrepDisplayLineForWriting(3);
-    PrepDisplayLineForWriting(2);
-    PrepDisplayLineForWriting(1);
-
-    display.println("Set target:");
-
-    display.print("CONE ");
-    display.print(coneSequence[sequenceLocation]);
-    display.display();
-
-    if (!digitalRead(BUTTON_A))
-    {
-      delay(DEBOUNCE);
-      inMenu = false;
-    }
-    if (!digitalRead(BUTTON_B))
-    {
-      delay(DEBOUNCE);
-      sequenceLocation++;
-      if (sequenceLocation > sequenceMax)
-      {
-        sequenceLocation = 0;
-      }
-      temperatureForTargetTemperatureNotification = tempSequence[sequenceLocation];
-      PrepDisplayLineForWriting(2);
-      display.print("CONE ");
-      display.print(coneSequence[sequenceLocation]);
-      display.display();
-    }
-    if (!digitalRead(BUTTON_C))
-    {
-      delay(DEBOUNCE);
-      sequenceLocation--;
-      if (sequenceLocation < 0)
-      {
-        sequenceLocation = sequenceMax;
-      }
-      temperatureForTargetTemperatureNotification = tempSequence[sequenceLocation];
-      PrepDisplayLineForWriting(2);
-      display.print("CONE ");
-      display.print(coneSequence[sequenceLocation]);
-      display.display();
-    }
-  }
-}
 
 void loop()
 {
@@ -448,14 +518,12 @@ void loop()
   //update SSID and IP as sometimes the Wifi101 library returned a blank SSID
   WriteWiFiStatusToDisplay(WiFi.SSID(), ipToString(WiFi.localIP()));
 
-
   LED_Power_Status.updateLED();
   LED_Thermocouple_Status.updateLED();
   LED_Wifi_Status.updateLED();
   LED_BLYNK_Status.updateLED();
 
   if (!digitalRead(BUTTON_A)) {
-    delay(DEBOUNCE);
     delay(DEBOUNCE);
     delay(DEBOUNCE);
     ShowMenu();

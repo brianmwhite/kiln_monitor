@@ -479,8 +479,8 @@ void loop()
   LED_BLYNK_Status.updateLED();
 
   if (!digitalRead(BUTTON_A)) {
-    delay(DEBOUNCE);
-    delay(DEBOUNCE);
+    //TODO: re-test whether it the A button still needed a longer delay
+    delay(DEBOUNCE * 2); //to prevent a double a button click, for some reason, it needed a longer delay
     ShowMenu();
   }
   

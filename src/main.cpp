@@ -18,13 +18,13 @@
 //GitHub - greiman/SSD1306Ascii: Text only Arduino Library for SSD1306 OLED displays
 //https://github.com/greiman/SSD1306Ascii
  
-
-
-
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 32, &Wire);
 #define BUTTON_A  9
 #define BUTTON_B  6
 #define BUTTON_C  5
+
+//time to wait to only capture a single button press
+#define DEBOUNCE  150
 
 //pin definitions
 #define PIN_THERMOCOUPLE_LED_STATUS 13 //yellow
@@ -80,7 +80,6 @@ String coneSequenceLabels[] = { "10","9","8","7","6","5","4","3","2","1","01","0
 int coneSequenceNumberOfItems = 32;
 int coneSequenceDefaultStartLocation = 4;
 
-
 int coolDownTargetSequenceValues [] = {80,90,100,110,120,130,140,150};
 String coolDownTargetSequenceLabels [] = {"80","90","100","110","120","130","140","150"};
 int coolDownSequenceNumberOfItems = 8;
@@ -94,8 +93,6 @@ typedef struct {
 
 UserSetVariablesStructure UserSetVariables;
 FlashStorage(Storage_UserSetVariables, UserSetVariablesStructure);
-
-#define DEBOUNCE  150
 
 int GetOLEDVerticalCoordiatesFromLine(int line)
 {
@@ -127,7 +124,7 @@ void WriteTemperatureToDisplay(float kilnTemp, float boardTemp)
   display.cp437(true);
   display.write(167);
   display.print("F");
-  display.print(" |");
+  display.print(" ");
   display.write(30);
   display.print("C");
   display.print(coneSequenceLabels[UserSetVariables.ConeTargetSequenceLocation]);

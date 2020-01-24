@@ -53,7 +53,7 @@ float temperatureForTooHotTargetTemperatureNotification = temperatureForTargetTe
 int LowTemperatureThreshold = 10;
 
 int SERIAL_BAUD_RATE = 9600;
-int MAX_THERMOCOUPLE_TEMPERATURE_CELSIUS = 1800;
+int MAX_THERMOCOUPLE_TEMPERATURE_CELSIUS = 1370;
 
 //make sure to also update the build flags in platformio.ini to include something like:
 //-D EXAMPLE_ENV_VARIABLE_NAME=\"${sysenv.EXAMPLE_ENV_VARIABLE_NAME}\"

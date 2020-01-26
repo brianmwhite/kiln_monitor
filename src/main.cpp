@@ -74,6 +74,7 @@ bool hasNotifiedForTargetHighTemperature = false;
 bool hasNotifiedForTargetLowTemperature = false;
 bool hasLowTemperatureNotificationBeenUnlocked = false;
 bool hasNotifiedForTargetTooHighTemperature = false;
+bool ShowLEDs = true;
 
 int coneSequenceValues[] = { 2345,2300,2273,2262,2232,2167,2142,2106,2088,2079,2046,2016,1987,1945,1888,1828,1789,1728,1688,1657,1607,1582,1539,1485,1456,1422,1360,1252,1252,1159,1112,1087 };
 String coneSequenceLabels[] = { "10","9","8","7","6","5","4","3","2","1","01","02","03","04","05","06","07","08","09","010","011","012","013","014","015","016","017","018","019","020","021","022" };
@@ -470,15 +471,30 @@ void loop()
   //update SSID and IP as sometimes the Wifi101 library returned a blank SSID
   WriteWiFiStatusToDisplay(WiFi.SSID(), ipToString(WiFi.localIP()));
 
-  LED_Power_Status.updateLED();
-  LED_Thermocouple_Status.updateLED();
-  LED_Wifi_Status.updateLED();
-  LED_BLYNK_Status.updateLED();
+  if (ShowLEDs) 
+  {
+    LED_Power_Status.updateLED();
+    LED_Thermocouple_Status.updateLED();
+    LED_Wifi_Status.updateLED();
+    LED_BLYNK_Status.updateLED();
+  } 
+  else
+  {
+    digitalWrite(PIN_LED_BLYNK_STATUS, LOW);
+    digitalWrite(PIN_WIFI_LED_STATUS, LOW);
+    digitalWrite(PIN_LED_POWER_STATUS, LOW);
+    digitalWrite(PIN_THERMOCOUPLE_LED_STATUS, LOW);
+  }
 
   if (!digitalRead(BUTTON_A)) {
     //TODO: re-test whether it the A button still needed a longer delay
     delay(DEBOUNCE * 2); //to prevent a double a button click, for some reason, it needed a longer delay
     ShowMenu();
+  }
+
+  if (!digitalRead(BUTTON_C)) {
+    delay(DEBOUNCE * 2); //to prevent a double a button click, for some reason, it needed a longer delay
+    ShowLEDs = !ShowLEDs; //reverse the boolean value
   }
   
 }
